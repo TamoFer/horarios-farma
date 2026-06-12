@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+
+.drop-zone {
+  transition: background-color 0.2s ease;
+}
+
+.drop-zone:hover {
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.cdk-drag-preview {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  background: white;
+  padding: 8px;
+  opacity: 0.9;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
