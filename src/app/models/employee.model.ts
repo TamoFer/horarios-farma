@@ -26,6 +26,21 @@ export interface Vacation {
   endDate: string;
 }
 
+export interface ScheduleHistory {
+  id: string;
+  date: string;
+  placedEmployees: PlacedEmployeeData[];
+  createdAt: Date;
+}
+
+export interface PlacedEmployeeData {
+  employeeId: number;
+  employeeName: string;
+  area: Area;
+  function: JobFunction;
+  shifts: ShiftBlock[];
+}
+
 export const WORK_HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
 
 export const AREAS: Area[] = ['mostrador', 'caja', 'perfumeria', 'salon', 'inventario', 'limpieza'];

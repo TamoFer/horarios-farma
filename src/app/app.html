@@ -68,6 +68,17 @@
       >
         Vacaciones
       </button>
+      <button
+        (click)="setSection('historial')"
+        class="px-4 py-3 text-sm font-medium transition-colors border-b-2"
+        [class.border-white]="currentSection() === 'historial'"
+        [class.border-transparent]="currentSection() !== 'historial'"
+        [class.text-white]="currentSection() === 'historial'"
+        [class.text-indigo-200]="currentSection() !== 'historial'"
+        [class.hover:text-white]="currentSection() !== 'historial'"
+      >
+        Historial
+      </button>
     </nav>
   </header>
 
@@ -153,7 +164,7 @@
         </div>
       }
       @case ('horario') {
-        <app-dashboard [employees]="allEmployees()" [vacations]="vacations()" (employeeChange)="allEmployees.set($event)" />
+        <app-dashboard [employees]="allEmployees()" [vacations]="vacations()" (employeeChange)="allEmployees.set($event)" (saveSchedule)="onSaveSchedule($event)" />
       }
       @case ('vacaciones') {
         <div class="p-6">
@@ -224,6 +235,9 @@
             </table>
           </div>
         </div>
+      }
+      @case ('historial') {
+        <app-history />
       }
     }
   </main>

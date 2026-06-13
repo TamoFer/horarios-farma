@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -10,12 +10,15 @@ import {
   FUNCTION_LABELS,
   DAY_LABELS,
   SAMPLE_EMPLOYEES,
+  PlacedEmployeeData,
 } from './models/employee.model';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { EmployeeFormComponent } from './components/employee-form/employee-form.component';
 import { VacationModalComponent } from './components/vacation-modal/vacation-modal.component';
+import { HistoryComponent } from './components/history/history.component';
+import { HistoryService } from './services/history.service';
 
-type Section = 'empleados' | 'horario' | 'vacaciones';
+type Section = 'empleados' | 'horario' | 'vacaciones' | 'historial';
 
 interface Toast {
   id: number;
@@ -25,7 +28,7 @@ interface Toast {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, DashboardComponent, EmployeeFormComponent, VacationModalComponent],
+  imports: [CommonModule, FormsModule, DashboardComponent, EmployeeFormComponent, VacationModalComponent, HistoryComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -41,8 +44,15 @@ export class App {
 
   notifications = signal<Toast[]>([]);
 
+  private historyService = inject(HistoryService);
+
   setSection(section: Section): void {
     this.currentSection.set(section);
+  }
+
+  onSaveSchedule(data: { date: string; placedEmployees: PlacedEmployeeData[] }): void {
+    this.historyService.addEntry(data.date, data.placedEmployees);
+    this.showNotification('Horario guardado en historial', 'success');
   }
 
   getEmployees(): Employee[] {

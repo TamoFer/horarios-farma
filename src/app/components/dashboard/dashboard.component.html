@@ -202,10 +202,10 @@
             </svg>
             Limpiar Grilla
           </button>
-          <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
+          <button (click)="saveScheduleToHistory()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
             Guardar Cambios
           </button>
-          <button class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+          <button (click)="exportToPDF()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
             Exportar
           </button>
           <button
@@ -220,7 +220,7 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div #scheduleGrid class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <div class="min-w-[1000px]">
             <div class="flex border-b border-gray-200 bg-gray-50">

@@ -1,5 +1,7 @@
-import { Component, signal, input, output } from '@angular/core';
+import { Component, signal, input, output, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import jsPDF from 'jspdf';
 import {
   Employee,
   JobFunction,
@@ -13,6 +15,7 @@ import {
   AREA_LABELS,
   FUNCTION_LABELS,
   DAY_LABELS,
+  PlacedEmployeeData,
 } from '../../models/employee.model';
 import { EmployeeModalComponent } from '../employee-modal/employee-modal.component';
 
@@ -39,14 +42,17 @@ interface AreaSchedule {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, EmployeeModalComponent],
+  imports: [CommonModule, FormsModule, EmployeeModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent {
+  @ViewChild('scheduleGrid') scheduleGrid!: ElementRef;
+
   employees = input<Employee[]>([]);
   vacations = input<Vacation[]>([]);
   employeeChange = output<Employee[]>();
+  saveSchedule = output<{ date: string; placedEmployees: PlacedEmployeeData[] }>();
 
   areas = AREAS;
   workHours = WORK_HOURS;
@@ -376,5 +382,147 @@ export class DashboardComponent {
 
     this.placedEmployees.update((list) => [...list, ...newPlaced]);
     this.rebuildSchedules();
+  }
+
+  saveScheduleToHistory(): void {
+    const currentDate = this.getCurrentDateFormatted();
+    const placedData: PlacedEmployeeData[] = this.placedEmployees().map(p => ({
+      employeeId: p.employee.id,
+      employeeName: p.employee.name,
+      area: p.area,
+      function: p.function,
+      shifts: p.shifts
+    }));
+    this.saveSchedule.emit({ date: currentDate, placedEmployees: placedData });
+  }
+
+  async exportToPDF(): Promise<void> {
+    try {
+      const currentDate = this.getCurrentDateFormatted();
+      const placedData: PlacedEmployeeData[] = this.placedEmployees().map(p => ({
+        employeeId: p.employee.id,
+        employeeName: p.employee.name,
+        area: p.area,
+        function: p.function,
+        shifts: p.shifts
+      }));
+      this.saveSchedule.emit({ date: currentDate, placedEmployees: placedData });
+
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const title = `Horarios Farmacia - ${this.getCurrentDateFormatted()}`;
+
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(title, pageWidth / 2, margin + 5, { align: 'center' });
+
+      const areaLabelWidth = 35;
+      const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
+      const rowHeight = 8;
+      const headerHeight = 10;
+      const startY = margin + 15;
+
+      const funcColors: Record<JobFunction, [number, number, number]> = {
+        cajero: [59, 130, 246],
+        vendedor: [16, 185, 129],
+        perfumera: [236, 72, 153],
+        salon: [147, 51, 234],
+        inventario: [245, 158, 11],
+        limpieza: [107, 114, 128],
+      };
+
+      pdf.setFillColor(249, 250, 251);
+      pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
+
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(75, 85, 99);
+      pdf.text('Área', margin + 2, startY + 7);
+
+      this.workHours.forEach((hour, i) => {
+        const x = margin + areaLabelWidth + i * hourWidth;
+        pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 7, { align: 'center' });
+      });
+
+      pdf.setDrawColor(229, 231, 235);
+      pdf.setLineWidth(0.3);
+
+      let currentY = startY + headerHeight;
+
+      this.areaSchedules().forEach((areaSchedule) => {
+        const maxTracks = areaSchedule.tracks.length;
+        const areaRowHeight = maxTracks > 0 ? rowHeight * maxTracks : rowHeight;
+
+        pdf.setFillColor(249, 250, 251);
+        pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight, 'F');
+
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(31, 41, 55);
+        pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 2);
+
+        pdf.setDrawColor(229, 231, 235);
+        pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight);
+
+        this.workHours.forEach((_, i) => {
+          const x = margin + areaLabelWidth + i * hourWidth;
+          pdf.rect(x, currentY, hourWidth, areaRowHeight);
+        });
+
+        areaSchedule.tracks.forEach((track, trackIndex) => {
+          const trackY = currentY + trackIndex * rowHeight;
+
+          track.forEach((schedule) => {
+            const shiftStart = schedule.shift.start;
+            const shiftEnd = schedule.shift.end;
+            const leftX = margin + areaLabelWidth + ((shiftStart - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
+            const rightX = margin + areaLabelWidth + ((shiftEnd - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
+            const barWidth = rightX - leftX;
+            const color = funcColors[schedule.function];
+
+            pdf.setFillColor(color[0], color[1], color[2]);
+            pdf.roundedRect(leftX, trackY + 1, barWidth, rowHeight - 2, 1, 1, 'F');
+
+            pdf.setFontSize(6);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(255, 255, 255);
+            const name = schedule.employee.name.length > 12 ? schedule.employee.name.substring(0, 10) + '..' : schedule.employee.name;
+            pdf.text(name, leftX + 2, trackY + 5.5);
+          });
+        });
+
+        currentY += areaRowHeight;
+      });
+
+      const legendY = currentY + 10;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(75, 85, 99);
+      pdf.text('Leyenda:', margin, legendY);
+
+      const funcs = Object.keys(funcColors) as JobFunction[];
+      funcs.forEach((func, i) => {
+        const x = margin + 15 + i * 30;
+        const color = funcColors[func];
+        pdf.setFillColor(color[0], color[1], color[2]);
+        pdf.rect(x, legendY - 3, 4, 4, 'F');
+        pdf.setTextColor(75, 85, 99);
+        pdf.text(this.functionLabels[func], x + 6, legendY);
+      });
+
+      pdf.autoPrint();
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
   }
 }
