@@ -1,0 +1,6 @@
+id,branch_id,name,functions,default_function,weekly_hours,day_off,shifts,active,created_at,updated_at
+1,1,Juan Pérez,"[""manana"",""tarde""]",manana,40,Lunes,[],true,2026-01-01 00:00:00,2026-01-01 00:00:00
+2,1,María García,"[""manana"",""noche""]",tarde,40,Martes,[],true,2026-01-01 00:00:00,2026-01-01 00:00:00
+3,2,Pedro López,"[""manana"",""tarde"",""noche""]",manana,35,Miercoles,[],true,2026-01-01 00:00:00,2026-01-01 00:00:00
+4,2,Ana Martínez,"[""tarde"",""noche""]",tarde,40,Jueves,[],true,2026-01-01 00:00:00,2026-01-01 00:00:00
+5,3,Lucas Sánchez,"[""manana"",""tarde""]",manana,40,Viernes,[],true,2026-01-01 00:00:00,2026-01-01 00:00:00

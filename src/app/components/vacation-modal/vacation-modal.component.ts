@@ -1,4 +1,4 @@
-import { Component, signal, output, input } from '@angular/core';
+import { Component, signal, output, input, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Employee, Vacation } from '../../models/employee.model';
@@ -20,21 +20,24 @@ export class VacationModalComponent {
   startDate = signal<string>('');
   endDate = signal<string>('');
 
-  ngOnInit(): void {
-    const editing = this.editingVacation();
-    if (editing) {
-      this.selectedEmployeeId.set(editing.employeeId);
-      this.startDate.set(editing.startDate);
-      this.endDate.set(editing.endDate);
-    } else {
+  constructor() {
+    effect(() => {
+      const editing = this.editingVacation();
       const employees = this.employees();
-      if (employees.length > 0) {
-        this.selectedEmployeeId.set(employees[0].id);
+
+      if (editing) {
+        this.selectedEmployeeId.set(editing.employeeId);
+        this.startDate.set(editing.startDate);
+        this.endDate.set(editing.endDate);
+      } else {
+        if (employees.length > 0 && this.selectedEmployeeId() === null) {
+          this.selectedEmployeeId.set(employees[0].id);
+        }
+        const today = new Date().toISOString().split('T')[0];
+        this.startDate.set(today);
+        this.endDate.set(today);
       }
-      const today = new Date().toISOString().split('T')[0];
-      this.startDate.set(today);
-      this.endDate.set(today);
-    }
+    });
   }
 
   getAvailableEmployees(): Employee[] {

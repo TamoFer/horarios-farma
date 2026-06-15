@@ -1,6 +1,7 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterOutlet } from '@angular/router';
 import {
   Employee,
   JobFunction,
@@ -9,13 +10,13 @@ import {
   Vacation,
   FUNCTION_LABELS,
   DAY_LABELS,
-  SAMPLE_EMPLOYEES,
   PlacedEmployeeData,
 } from './models/employee.model';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { EmployeeFormComponent } from './components/employee-form/employee-form.component';
 import { VacationModalComponent } from './components/vacation-modal/vacation-modal.component';
 import { HistoryComponent } from './components/history/history.component';
+import { AuthService } from './services/auth.service';
 import { HistoryService } from './services/history.service';
 
 type Section = 'empleados' | 'horario' | 'vacaciones' | 'historial';
@@ -28,15 +29,12 @@ interface Toast {
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule, DashboardComponent, EmployeeFormComponent, VacationModalComponent, HistoryComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   currentSection = signal<Section>('horario');
-  allEmployees = signal<Employee[]>(SAMPLE_EMPLOYEES);
-  vacations = signal<Vacation[]>([]);
-
   editingEmployee = signal<Employee | null>(null);
   showModal = signal(false);
   showVacationModal = signal(false);
@@ -44,7 +42,45 @@ export class App {
 
   notifications = signal<Toast[]>([]);
 
+  private authService = inject(AuthService);
   private historyService = inject(HistoryService);
+  private router = inject(Router);
+
+  constructor() {
+    this.authService.initialize();
+
+    effect(() => {
+      if (!this.authService.isAuthenticated()) {
+        this.router.navigate(['/login']);
+      }
+    });
+
+    effect(() => {
+      const branch = this.authService.selectedBranch();
+      if (branch) {
+        this.loadVacationsForBranch(branch.id);
+      }
+    });
+  }
+
+  allEmployees = computed(() => {
+    const branch = this.authService.selectedBranch();
+    if (!branch) return [];
+    return this.authService.getEmployeesForBranch(branch.id);
+  });
+
+  vacations = signal<Vacation[]>([]);
+
+  private async loadVacationsForBranch(branchId: number) {
+    const { data } = await this.authService.getSupabase()
+      .from('vacations')
+      .select('*, employees(branch_id)')
+      .eq('employees.branch_id', branchId);
+
+    if (data) {
+      this.vacations.set(data as Vacation[]);
+    }
+  }
 
   setSection(section: Section): void {
     this.currentSection.set(section);
@@ -74,10 +110,13 @@ export class App {
     this.editingEmployee.set(null);
   }
 
-  deleteEmployee(id: number): void {
+  async deleteEmployee(id: number): Promise<void> {
     const employee = this.allEmployees().find((e) => e.id === id);
-    this.allEmployees.update((list) => list.filter((e) => e.id !== id));
-    this.vacations.update((list) => list.filter((v) => v.employeeId !== id));
+    await this.authService.getSupabase()
+      .from('employees')
+      .update({ active: false })
+      .eq('id', id);
+
     this.showNotification(`Empleado "${employee?.name}" eliminado`, 'success');
   }
 
@@ -104,22 +143,41 @@ export class App {
   functionLabels = FUNCTION_LABELS;
   dayLabels = DAY_LABELS;
 
-  onSaveEmployee(employee: Employee): void {
+  async onSaveEmployee(employee: Employee): Promise<void> {
     const editing = this.editingEmployee();
+    const branch = this.authService.selectedBranch();
+
+    if (!branch) return;
 
     if (editing) {
-      this.allEmployees.update((list) =>
-        list.map((e) =>
-          e.id === editing.id ? employee : e
-        )
-      );
+      await this.authService.getSupabase()
+        .from('employees')
+        .update({
+          name: employee.name,
+          functions: employee.functions,
+          default_function: employee.defaultFunction,
+          weekly_hours: employee.weeklyHours,
+          day_off: employee.dayOff,
+          shifts: JSON.stringify(employee.shifts)
+        })
+        .eq('id', editing.id);
+
+      await this.authService.refreshManagerData();
       this.showNotification(`Empleado "${employee.name}" actualizado`, 'success');
     } else {
-      const newId = Math.max(...this.allEmployees().map((e) => e.id)) + 1;
-      this.allEmployees.update((list) => [
-        ...list,
-        { ...employee, id: newId },
-      ]);
+      await this.authService.getSupabase()
+        .from('employees')
+        .insert({
+          branch_id: branch.id,
+          name: employee.name,
+          functions: employee.functions,
+          default_function: employee.defaultFunction,
+          weekly_hours: employee.weeklyHours,
+          day_off: employee.dayOff,
+          shifts: JSON.stringify(employee.shifts)
+        });
+
+      await this.authService.refreshManagerData();
       this.showNotification(`Empleado "${employee.name}" creado`, 'success');
     }
 
@@ -141,26 +199,56 @@ export class App {
     this.editingVacation.set(null);
   }
 
-  deleteVacation(id: number): void {
+  async deleteVacation(id: number): Promise<void> {
     const vacation = this.vacations().find((v) => v.id === id);
     const employeeName = vacation ? this.getEmployeeName(vacation.employeeId) : '';
-    this.vacations.update((list) => list.filter((v) => v.id !== id));
+
+    await this.authService.getSupabase()
+      .from('vacations')
+      .delete()
+      .eq('id', id);
+
+    const branch = this.authService.selectedBranch();
+    if (branch) {
+      await this.loadVacationsForBranch(branch.id);
+    }
+
     this.showNotification(`Vacaciones de "${employeeName}" eliminadas`, 'success');
   }
 
-  onSaveVacation(vacation: Vacation): void {
+  async onSaveVacation(vacation: Vacation): Promise<void> {
     const editing = this.editingVacation();
     const employeeName = this.getEmployeeName(vacation.employeeId);
 
     if (editing) {
-      this.vacations.update((list) =>
-        list.map((v) =>
-          v.id === editing.id ? vacation : v
-        )
-      );
+      await this.authService.getSupabase()
+        .from('vacations')
+        .update({
+          start_date: vacation.startDate,
+          end_date: vacation.endDate
+        })
+        .eq('id', editing.id);
+
+      const branch = this.authService.selectedBranch();
+      if (branch) {
+        await this.loadVacationsForBranch(branch.id);
+      }
+
       this.showNotification(`Vacaciones de "${employeeName}" actualizadas`, 'success');
     } else {
-      this.vacations.update((list) => [...list, vacation]);
+      await this.authService.getSupabase()
+        .from('vacations')
+        .insert({
+          employee_id: vacation.employeeId,
+          start_date: vacation.startDate,
+          end_date: vacation.endDate
+        });
+
+      const branch = this.authService.selectedBranch();
+      if (branch) {
+        await this.loadVacationsForBranch(branch.id);
+      }
+
       this.showNotification(`Vacaciones de "${employeeName}" creadas`, 'success');
     }
 
@@ -169,7 +257,7 @@ export class App {
 
   getEmployeeName(employeeId: number): string {
     const emp = this.allEmployees().find((e) => e.id === employeeId);
-    return emp ? emp.name : 'Desconocido';
+    return emp?.name || 'Desconocido';
   }
 
   formatDate(dateStr: string): string {
