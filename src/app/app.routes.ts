@@ -14,5 +14,9 @@ export const routes: Routes = [
     path: 'dashboard',
     loadComponent: () => import('./app').then(m => m.App)
   },
+  {
+    path: 'admin/managers',
+    loadComponent: () => import('./components/admin-managers/admin-managers.component').then(m => m.AdminManagersComponent)
+  },
   { path: '**', redirectTo: '/login' }
 ];

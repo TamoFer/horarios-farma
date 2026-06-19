@@ -79,7 +79,7 @@ export class AuthService {
 
   private async loadManagerData(userId: string) {
     const { data: manager } = await this.supabase
-      .from('managers')
+      .from('roles_usuarios')
       .select('*')
       .eq('user_id', userId)
       .single();
@@ -91,25 +91,48 @@ export class AuthService {
   }
 
   private async loadManagerBranches(managerId: number) {
-    const { data: branches } = await this.supabase
-      .from('manager_branches')
-      .select('branch_id, branches(*)')
-      .eq('manager_id', managerId);
+    const manager = this._manager();
+    let branchList: Branch[] = [];
 
-    if (branches) {
-      const branchList = branches.map((b: any) => b.branches) as Branch[];
-      this._managerBranches.set(branchList);
-      await this.loadAllEmployeesForBranches(branchList);
+    if (manager?.role === 'admin') {
+      const { data: allBranches } = await this.supabase
+        .from('sucursales')
+        .select('*')
+        .order('nombre_suc');
+
+      if (allBranches) {
+        branchList = allBranches.map((b: any) => ({
+          id: b.id,
+          name: b.nombre_suc,
+          address: b.direccion || ''
+        })) as Branch[];
+      }
+    } else {
+      const { data: branches } = await this.supabase
+        .from('encargados_sucursales')
+        .select('branch_id, sucursales(*)')
+        .eq('manager_id', managerId);
+
+      if (branches) {
+        branchList = branches.map((b: any) => ({
+          id: b.sucursales.id,
+          name: b.sucursales.nombre_suc,
+          address: b.sucursales.direccion || ''
+        })) as Branch[];
+      }
     }
+
+    this._managerBranches.set(branchList);
+    await this.loadAllEmployeesForBranches(branchList);
   }
 
   private async loadAllEmployeesForBranches(branches: Branch[]) {
     const branchIds = branches.map(b => b.id);
     const { data: employees } = await this.supabase
-      .from('employees')
+      .from('empleados')
       .select('*')
       .in('branch_id', branchIds)
-      .eq('active', true);
+      .eq('trabajando', true);
 
     if (employees) {
       const employeesMap = new Map<number, Employee[]>();
@@ -128,12 +151,12 @@ export class AuthService {
   private mapDbToEmployee(emp: any): Employee {
     return {
       id: emp.id,
-      name: emp.name,
-      functions: emp.functions || [],
-      defaultFunction: emp.default_function,
-      weeklyHours: parseFloat(emp.weekly_hours) || 40,
-      dayOff: emp.day_off,
-      shifts: typeof emp.shifts === 'string' ? JSON.parse(emp.shifts) : (emp.shifts || [])
+      name: emp.nombre,
+      functions: emp.funciones || [],
+      defaultFunction: emp.puesto_contratado || 'vendedor',
+      weeklyHours: parseFloat(emp.jornada_semanal) || 40,
+      dayOff: emp.franco,
+      shifts: typeof emp.carga_horaria === 'string' ? JSON.parse(emp.carga_horaria) : (emp.carga_horaria ? [{ start: 9, end: 18 }] : [])
     };
   }
 

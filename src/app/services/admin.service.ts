@@ -16,12 +16,16 @@ export class AdminService {
   async loadAllBranches(): Promise<void> {
     this.loading.set(true);
     const { data, error } = await this.supabase
-      .from('branches')
+      .from('sucursales')
       .select('*')
-      .order('name');
+      .order('nombre_suc');
 
     if (!error && data) {
-      this.branches.set(data as Branch[]);
+      this.branches.set(data.map((b: any) => ({
+        id: b.id,
+        name: b.nombre_suc,
+        address: b.direccion || ''
+      })) as Branch[]);
     }
     this.loading.set(false);
   }
@@ -29,7 +33,7 @@ export class AdminService {
   async loadAllManagers(): Promise<void> {
     this.loading.set(true);
     const { data, error } = await this.supabase
-      .from('managers')
+      .from('roles_usuarios')
       .select('*')
       .order('name');
 
@@ -41,11 +45,11 @@ export class AdminService {
 
   async loadEmployeesByBranch(branchId: number): Promise<Employee[]> {
     const { data, error } = await this.supabase
-      .from('employees')
+      .from('empleados')
       .select('*')
       .eq('branch_id', branchId)
-      .eq('active', true)
-      .order('name');
+      .eq('trabajando', true)
+      .order('nombre');
 
     if (error) return [];
     return (data || []).map((emp: any) => this.mapDbToEmployee(emp));
@@ -53,8 +57,8 @@ export class AdminService {
 
   async createBranch(name: string, address: string): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('branches')
-      .insert({ name, address });
+      .from('sucursales')
+      .insert({ nombre_suc: name, direccion: address });
 
     if (!error) {
       await this.loadAllBranches();
@@ -64,8 +68,8 @@ export class AdminService {
 
   async updateBranch(id: number, name: string, address: string): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('branches')
-      .update({ name, address })
+      .from('sucursales')
+      .update({ nombre_suc: name, direccion: address })
       .eq('id', id);
 
     if (!error) {
@@ -76,7 +80,7 @@ export class AdminService {
 
   async deleteBranch(id: number): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('branches')
+      .from('sucursales')
       .delete()
       .eq('id', id);
 
@@ -96,15 +100,15 @@ export class AdminService {
     shifts: any[]
   ): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('employees')
+      .from('empleados')
       .insert({
         branch_id: branchId,
-        name,
-        functions,
-        default_function: defaultFunction,
-        weekly_hours: weeklyHours,
-        day_off: dayOff,
-        shifts: JSON.stringify(shifts)
+        nombre: name,
+        funciones: functions,
+        puesto_contratado: defaultFunction,
+        jornada_semanal: weeklyHours,
+        franco: dayOff,
+        carga_horaria: JSON.stringify(shifts)
       });
 
     return { error };
@@ -120,14 +124,14 @@ export class AdminService {
     shifts: any[]
   ): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('employees')
+      .from('empleados')
       .update({
-        name,
-        functions,
-        default_function: defaultFunction,
-        weekly_hours: weeklyHours,
-        day_off: dayOff,
-        shifts: JSON.stringify(shifts),
+        nombre: name,
+        funciones: functions,
+        puesto_contratado: defaultFunction,
+        jornada_semanal: weeklyHours,
+        franco: dayOff,
+        carga_horaria: JSON.stringify(shifts),
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
@@ -137,8 +141,8 @@ export class AdminService {
 
   async deleteEmployee(id: number): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('employees')
-      .update({ active: false })
+      .from('empleados')
+      .update({ trabajando: false })
       .eq('id', id);
 
     return { error };
@@ -146,7 +150,7 @@ export class AdminService {
 
   async createManager(userId: string, name: string, email: string, role: 'admin' | 'manager'): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('managers')
+      .from('roles_usuarios')
       .insert({ user_id: userId, name, email, role });
 
     if (!error) {
@@ -157,7 +161,7 @@ export class AdminService {
 
   async updateManagerRole(id: number, role: 'admin' | 'manager'): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('managers')
+      .from('roles_usuarios')
       .update({ role })
       .eq('id', id);
 
@@ -169,7 +173,7 @@ export class AdminService {
 
   async assignBranchToManager(managerId: number, branchId: number): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('manager_branches')
+      .from('encargados_sucursales')
       .insert({ manager_id: managerId, branch_id: branchId });
 
     return { error };
@@ -177,7 +181,7 @@ export class AdminService {
 
   async removeBranchFromManager(managerId: number, branchId: number): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('manager_branches')
+      .from('encargados_sucursales')
       .delete()
       .eq('manager_id', managerId)
       .eq('branch_id', branchId);
@@ -187,26 +191,30 @@ export class AdminService {
 
   async getManagerBranches(managerId: number): Promise<Branch[]> {
     const { data } = await this.supabase
-      .from('manager_branches')
-      .select('branch_id, branches(*)')
+      .from('encargados_sucursales')
+      .select('branch_id, sucursales(*)')
       .eq('manager_id', managerId);
 
     if (data) {
-      return data.map((b: any) => b.branches) as Branch[];
+      return data.map((b: any) => ({
+        id: b.sucursales.id,
+        name: b.sucursales.nombre_suc,
+        address: b.sucursales.direccion || ''
+      })) as Branch[];
     }
     return [];
   }
 
   async getAvailableManagersForBranch(branchId: number): Promise<Manager[]> {
     const { data: assigned } = await this.supabase
-      .from('manager_branches')
+      .from('encargados_sucursales')
       .select('manager_id')
       .eq('branch_id', branchId);
 
     const assignedIds = (assigned || []).map((a: any) => a.manager_id);
 
     const { data: managers } = await this.supabase
-      .from('managers')
+      .from('roles_usuarios')
       .select('*')
       .order('name');
 
@@ -218,7 +226,7 @@ export class AdminService {
 
   async transferEmployeeToBranch(employeeId: number, newBranchId: number): Promise<{ error: any }> {
     const { error } = await this.supabase
-      .from('employees')
+      .from('empleados')
       .update({ branch_id: newBranchId, updated_at: new Date().toISOString() })
       .eq('id', employeeId);
 
@@ -228,12 +236,12 @@ export class AdminService {
   private mapDbToEmployee(emp: any): Employee {
     return {
       id: emp.id,
-      name: emp.name,
-      functions: emp.functions || [],
-      defaultFunction: emp.default_function,
-      weeklyHours: parseFloat(emp.weekly_hours) || 40,
-      dayOff: emp.day_off,
-      shifts: typeof emp.shifts === 'string' ? JSON.parse(emp.shifts) : (emp.shifts || [])
+      name: emp.nombre,
+      functions: emp.funciones || [],
+      defaultFunction: emp.puesto_contratado || 'vendedor',
+      weeklyHours: parseFloat(emp.jornada_semanal) || 40,
+      dayOff: emp.franco,
+      shifts: typeof emp.carga_horaria === 'string' ? JSON.parse(emp.carga_horaria) : (emp.carga_horaria ? [{ start: 9, end: 18 }] : [])
     };
   }
 }
