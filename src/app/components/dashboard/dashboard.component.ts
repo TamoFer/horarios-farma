@@ -55,7 +55,7 @@ export class DashboardComponent {
   @ViewChild('scheduleGrid') scheduleGrid!: ElementRef;
 
   private router = inject(Router);
-  private authService = inject(AuthService);
+  authService = inject(AuthService);
   private historyService = inject(HistoryService);
   private toastService = inject(DynamicToastService);
 
@@ -104,6 +104,11 @@ export class DashboardComponent {
 
   showDeleteConfirm = signal(false);
   employeeToDelete = signal<Employee | null>(null);
+
+  showStatusModal = signal(false);
+  statusEmployee = signal<Employee | null>(null);
+  statusAction = signal<'renuncia' | 'despedido' | 'cambio_sucursal' | null>(null);
+  newBranchId: number | null = null;
 
   showVacationModal = signal(false);
   vacationForm = {
@@ -340,14 +345,26 @@ export class DashboardComponent {
     };
 
     if (this.editingEmployee()) {
-      await this.authService.getSupabase()
+      const { error } = await this.authService.getSupabase()
         .from('empleados')
         .update(empData)
         .eq('id', this.editingEmployee()!.id);
+
+      if (error) {
+        this.toastService.error('Error', { description: 'No se pudo actualizar el empleado' });
+      } else {
+        this.toastService.success('Empleado actualizado', { description: 'Los cambios han sido guardados correctamente' });
+      }
     } else {
-      await this.authService.getSupabase()
+      const { error } = await this.authService.getSupabase()
         .from('empleados')
         .insert({ ...empData, branch_id: branch.id });
+
+      if (error) {
+        this.toastService.error('Error', { description: 'No se pudo crear el empleado' });
+      } else {
+        this.toastService.success('Empleado creado', { description: `${this.employeeForm.name} ha sido agregado a la sucursal` });
+      }
     }
 
     await this.authService.refreshEmployeesForCurrentBranch();
@@ -424,14 +441,134 @@ export class DashboardComponent {
     this.employeeToDelete.set(null);
   }
 
+  openStatusModal(employee: Employee, action: 'renuncia' | 'despedido' | 'cambio_sucursal'): void {
+    this.statusEmployee.set(employee);
+    this.statusAction.set(action);
+    this.newBranchId = null;
+    this.showStatusModal.set(true);
+  }
+
+  closeStatusModal(): void {
+    this.showStatusModal.set(false);
+    this.statusEmployee.set(null);
+    this.statusAction.set(null);
+    this.newBranchId = null;
+  }
+
+  async confirmStatusChange(): Promise<void> {
+    const employee = this.statusEmployee();
+    const action = this.statusAction();
+    if (!employee || !action) return;
+
+    const branch = this.authService.selectedBranch();
+    if (!branch) return;
+
+    if (action === 'cambio_sucursal') {
+      if (!this.newBranchId) return;
+
+      const { error: error1 } = await this.authService.getSupabase()
+        .from('ex_empleados')
+        .insert({
+          nombre: employee.name,
+          funciones: employee.functions,
+          puesto_contratado: employee.defaultFunction,
+          jornada_semanal: employee.weeklyHours,
+          franco: employee.dayOff,
+          carga_horaria: JSON.stringify(employee.shifts),
+          nro_vendedor: (employee as any).nro_vendedor || null,
+          branch_id: this.newBranchId,
+          sucursal_origen: branch.id,
+          fecha_salida: new Date().toISOString().split('T')[0],
+          motivo_salida: 'cambio_sucursal',
+          sucursal_destino: this.newBranchId
+        });
+
+      const { error: error2 } = await this.authService.getSupabase()
+        .from('empleados')
+        .update({ branch_id: this.newBranchId })
+        .eq('id', employee.id);
+
+      if (error1 || error2) {
+        this.toastService.error('Error', { description: 'No se pudo realizar el cambio de sucursal' });
+      } else {
+        this.toastService.success('Cambio de sucursal', { description: `${employee.name} ha sido asignado a otra sucursal` });
+      }
+
+    } else if (action === 'renuncia') {
+      const { error: error1 } = await this.authService.getSupabase()
+        .from('ex_empleados')
+        .insert({
+          nombre: employee.name,
+          funciones: employee.functions,
+          puesto_contratado: employee.defaultFunction,
+          jornada_semanal: employee.weeklyHours,
+          franco: employee.dayOff,
+          carga_horaria: JSON.stringify(employee.shifts),
+          nro_vendedor: (employee as any).nro_vendedor || null,
+          branch_id: branch.id,
+          sucursal_origen: branch.id,
+          fecha_salida: new Date().toISOString().split('T')[0],
+          motivo_salida: 'renuncia'
+        });
+
+      const { error: error2 } = await this.authService.getSupabase()
+        .from('empleados')
+        .update({ trabajando: false })
+        .eq('id', employee.id);
+
+      if (error1 || error2) {
+        this.toastService.error('Error', { description: 'No se pudo registrar la renuncia' });
+      } else {
+        this.toastService.success('Renuncia registrada', { description: `${employee.name} ha sido dado de baja por renuncia` });
+      }
+
+    } else {
+      const { error: error1 } = await this.authService.getSupabase()
+        .from('ex_empleados')
+        .insert({
+          nombre: employee.name,
+          funciones: employee.functions,
+          puesto_contratado: employee.defaultFunction,
+          jornada_semanal: employee.weeklyHours,
+          franco: employee.dayOff,
+          carga_horaria: JSON.stringify(employee.shifts),
+          nro_vendedor: (employee as any).nro_vendedor || null,
+          branch_id: branch.id,
+          sucursal_origen: branch.id,
+          fecha_salida: new Date().toISOString().split('T')[0],
+          motivo_salida: 'despedido'
+        });
+
+      const { error: error2 } = await this.authService.getSupabase()
+        .from('empleados')
+        .update({ trabajando: false })
+        .eq('id', employee.id);
+
+      if (error1 || error2) {
+        this.toastService.error('Error', { description: 'No se pudo registrar el despido' });
+      } else {
+        this.toastService.success('Despido registrado', { description: `${employee.name} ha sido dado de baja` });
+      }
+    }
+
+    await this.authService.refreshEmployeesForCurrentBranch();
+    this.closeStatusModal();
+  }
+
   async confirmDelete(): Promise<void> {
     const emp = this.employeeToDelete();
     if (!emp) return;
 
-    await this.authService.getSupabase()
+    const { error } = await this.authService.getSupabase()
       .from('empleados')
       .update({ trabajando: false })
       .eq('id', emp.id);
+
+    if (error) {
+      this.toastService.error('Error', { description: 'No se pudo eliminar el empleado' });
+    } else {
+      this.toastService.success('Empleado eliminado', { description: `${emp.name} ha sido dado de baja` });
+    }
 
     await this.authService.refreshEmployeesForCurrentBranch();
     this.showDeleteConfirm.set(false);

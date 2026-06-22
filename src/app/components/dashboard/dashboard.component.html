@@ -269,8 +269,20 @@
                     <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[employee.dayOff] }}</td>
                     <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeShifts(employee) }}</td>
                     <td class="px-4 py-2 text-sm">
-                      <button (click)="openEditEmployeeModal(employee)" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-2">Editar</button>
-                      <button (click)="requestDeleteEmployee(employee)" class="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
+                      <div class="flex items-center gap-1">
+                        <button (click)="openEditEmployeeModal(employee)" class="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md" title="Editar">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button (click)="openStatusModal(employee, 'renuncia')" class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md" title="Renuncia">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                        </button>
+                        <button (click)="openStatusModal(employee, 'despedido')" class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md" title="Despedido">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </button>
+                        <button (click)="openStatusModal(employee, 'cambio_sucursal')" class="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md" title="Cambio de Sucursal">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -490,5 +502,41 @@
         </button>
       </div>
     </div>
+  </div>
+}
+
+@if (showStatusModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    @if (statusAction() === 'cambio_sucursal') {
+      <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Cambio de Sucursal - {{ statusEmployee()?.name }}</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal de Destino</label>
+            <select [(ngModel)]="newBranchId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="">Seleccionar sucursal...</option>
+              @for (branch of authService.managerBranches(); track branch.id) {
+                @if (branch.id !== authService.selectedBranch()?.id) {
+                  <option [value]="branch.id">{{ branch.name }}</option>
+                }
+              }
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button (click)="closeStatusModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+          <button (click)="confirmStatusChange()" class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors">Confirmar Cambio</button>
+        </div>
+      </div>
+    } @else {
+      <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar {{ statusAction() === 'renuncia' ? 'Renuncia' : 'Despido' }}</h3>
+        <p class="text-gray-600 mb-6">¿Estás seguro de que querés registrar la {{ statusAction() }} de <strong>{{ statusEmployee()?.name }}</strong>? El empleado será dado de baja.</p>
+        <div class="flex justify-end gap-3">
+          <button (click)="closeStatusModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+          <button (click)="confirmStatusChange()" class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors">Confirmar</button>
+        </div>
+      </div>
+    }
   </div>
 }
