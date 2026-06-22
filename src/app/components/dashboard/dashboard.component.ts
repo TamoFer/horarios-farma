@@ -125,6 +125,10 @@ export class DashboardComponent {
   employeeSortDirection = signal<'asc' | 'desc'>('asc');
   employeeSortApplied = signal(false);
 
+  scheduleDate = signal(new Date().toISOString().split('T')[0]);
+  minScheduleDate = new Date().toISOString().split('T')[0];
+  showDatePicker = signal(false);
+
   filteredEmployees = computed(() => {
     let result = [...this.allEmployees];
 
@@ -659,7 +663,7 @@ export class DashboardComponent {
   }
 
   formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('es-ES');
   }
 
@@ -675,21 +679,33 @@ export class DashboardComponent {
 
   getCurrentDayOff(): DayOfWeek {
     const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-    const todayIndex = new Date().getDay();
-    return days[todayIndex];
+    const date = new Date(this.scheduleDate() + 'T00:00:00');
+    const dayIndex = date.getDay();
+    return days[dayIndex];
   }
 
   isEmployeeOnDayOff(employee: Employee): boolean {
     return employee.dayOff === this.getCurrentDayOff();
   }
 
+  isToday(): boolean {
+    return this.scheduleDate() === new Date().toISOString().split('T')[0];
+  }
+
+  goToToday(): void {
+    this.scheduleDate.set(new Date().toISOString().split('T')[0]);
+  }
+
+  toggleDatePicker(): void {
+    this.showDatePicker.update(v => !v);
+  }
+
   isEmployeeOnVacation(employeeId: number): boolean {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const dateStr = this.scheduleDate();
     return this.vacations().some((v) => {
-      const start = new Date(v.startDate);
-      const end = new Date(v.endDate);
-      return v.employeeId === employeeId && today >= start && today <= end;
+      const startStr = v.startDate.split('T')[0];
+      const endStr = v.endDate.split('T')[0];
+      return v.employeeId === employeeId && dateStr >= startStr && dateStr <= endStr;
     });
   }
 
@@ -726,8 +742,8 @@ export class DashboardComponent {
   getVacationDates(employeeId: number): string {
     const vacation = this.vacations().find((v) => v.employeeId === employeeId);
     if (!vacation) return '';
-    const start = new Date(vacation.startDate).toLocaleDateString('es-ES');
-    const end = new Date(vacation.endDate).toLocaleDateString('es-ES');
+    const start = new Date(vacation.startDate + 'T00:00:00').toLocaleDateString('es-ES');
+    const end = new Date(vacation.endDate + 'T00:00:00').toLocaleDateString('es-ES');
     return `${start} - ${end}`;
   }
 
@@ -918,6 +934,79 @@ export class DashboardComponent {
     const month = months[now.getMonth()];
     const year = now.getFullYear();
     return `${dayName} ${day} de ${month} de ${year}`;
+  }
+
+  getScheduleDateFormatted(): string {
+    const date = new Date(this.scheduleDate() + 'T00:00:00');
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const dayName = days[date.getDay()];
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${dayName} ${day} de ${month} de ${year}`;
+  }
+
+  hasPlacedEmployees(): boolean {
+    return this.placedEmployees().length > 0;
+  }
+
+  goToNextDay(): void {
+    if (this.hasPlacedEmployees()) {
+      this.toastService.warning('Cambios sin guardar', {
+        description: 'Tienes empleados en la grilla sin guardar. ¿Querés descartar los cambios y avanzar?',
+        button: {
+          title: 'Descartar y avanzar',
+          onClick: () => this.confirmNextDay()
+        }
+      });
+    } else {
+      this.advanceToNextDay();
+    }
+  }
+
+  confirmNextDay(): void {
+    this.clearGrid();
+    this.advanceToNextDay();
+  }
+
+  advanceToNextDay(): void {
+    const current = new Date(this.scheduleDate() + 'T00:00:00');
+    current.setDate(current.getDate() + 1);
+    this.scheduleDate.set(current.toISOString().split('T')[0]);
+  }
+
+  openDatePicker(): void {
+    const input = document.querySelector('input[type="date"]') as HTMLInputElement;
+    if (input) {
+      input.min = this.minScheduleDate;
+      input.showPicker();
+    }
+  }
+
+  onDateSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const selectedDate = input.value;
+
+    if (selectedDate < this.minScheduleDate) {
+      this.toastService.error('Fecha inválida', { description: 'No podés seleccionar una fecha anterior a hoy' });
+      return;
+    }
+
+    if (this.hasPlacedEmployees()) {
+      this.toastService.warning('Cambios sin guardar', {
+        description: '¿Querésiscardar los cambios y cambiar de fecha?',
+        button: {
+          title: 'Descartar y cambiar',
+          onClick: () => {
+            this.clearGrid();
+            this.scheduleDate.set(selectedDate);
+          }
+        }
+      });
+    } else {
+      this.scheduleDate.set(selectedDate);
+    }
   }
 
   getFunctionBadgeColor(func: JobFunction): string {
