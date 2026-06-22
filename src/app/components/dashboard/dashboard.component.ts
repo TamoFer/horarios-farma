@@ -1,6 +1,7 @@
-import { Component, signal, input, output, ElementRef, ViewChild } from '@angular/core';
+import { Component, signal, output, ElementRef, ViewChild, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import jsPDF from 'jspdf';
 import {
   Employee,
@@ -17,7 +18,9 @@ import {
   DAY_LABELS,
   PlacedEmployeeData,
 } from '../../models/employee.model';
+import { AuthService } from '../../services/auth.service';
 import { EmployeeModalComponent } from '../employee-modal/employee-modal.component';
+import { VacationModalComponent } from '../vacation-modal/vacation-modal.component';
 
 interface PlacedEmployee {
   id: number;
@@ -49,8 +52,17 @@ interface AreaSchedule {
 export class DashboardComponent {
   @ViewChild('scheduleGrid') scheduleGrid!: ElementRef;
 
-  employees = input<Employee[]>([]);
-  vacations = input<Vacation[]>([]);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+
+  employees = computed(() => {
+    const branch = this.authService.selectedBranch();
+    if (!branch) return [];
+    return this.authService.getEmployeesForBranch(branch.id);
+  });
+
+  vacations = signal<Vacation[]>([]);
+
   employeeChange = output<Employee[]>();
   saveSchedule = output<{ date: string; placedEmployees: PlacedEmployeeData[] }>();
 
@@ -73,12 +85,63 @@ export class DashboardComponent {
 
   draggedEmployee = signal<Employee | null>(null);
   sidebarVisible = signal(true);
+  currentSection = signal<'horario' | 'empleados' | 'vacaciones' | 'historial'>('horario');
+
+  showEmployeeModal = signal(false);
+  editingEmployee = signal<Employee | null>(null);
+  employeeForm = {
+    name: '',
+    functions: ['vendedor'] as JobFunction[],
+    defaultFunction: 'vendedor' as JobFunction,
+    nroVendedor: null as number | null,
+    dayOff: 'domingo' as DayOfWeek,
+    shifts: [{ start: 9, end: 18 } as ShiftBlock]
+  };
+
+  showDeleteConfirm = signal(false);
+  employeeToDelete = signal<Employee | null>(null);
+
+  showVacationModal = signal(false);
+  vacationForm = {
+    employeeId: '',
+    startDate: '',
+    endDate: ''
+  };
+
+  availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado'];
+  allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
   constructor() {
     this.initEmptySchedule();
+    this.loadVacations();
   }
 
-  private get allEmployees(): Employee[] {
+  private async loadVacations() {
+    const branch = this.authService.selectedBranch();
+    if (!branch) return;
+
+    const { data: empleados } = await this.authService.getSupabase()
+      .from('empleados')
+      .select('id')
+      .eq('branch_id', branch.id);
+
+    const employeeIds = empleados?.map(e => e.id) || [];
+    if (employeeIds.length === 0) {
+      this.vacations.set([]);
+      return;
+    }
+
+    const { data } = await this.authService.getSupabase()
+      .from('vacaciones')
+      .select('*')
+      .in('employee_id', employeeIds);
+
+    if (data) {
+      this.vacations.set(data as Vacation[]);
+    }
+  }
+
+  public get allEmployees(): Employee[] {
     return this.employees();
   }
 
@@ -88,6 +151,230 @@ export class DashboardComponent {
 
   toggleSidebar(): void {
     this.sidebarVisible.update((v) => !v);
+  }
+
+  goToBranchSelect(): void {
+    this.authService.clearSelectedBranch();
+    this.router.navigate(['/branch-select']);
+  }
+
+  async signOut(): Promise<void> {
+    await this.authService.signOut();
+    this.router.navigate(['/login']);
+  }
+
+  setSection(section: 'horario' | 'empleados' | 'vacaciones' | 'historial'): void {
+    this.currentSection.set(section);
+  }
+
+  async deleteEmployee(id: number): Promise<void> {
+    const employee = this.allEmployees.find(e => e.id === id);
+    await this.authService.getSupabase()
+      .from('empleados')
+      .update({ trabajando: false })
+      .eq('id', id);
+    await this.authService.refreshManagerData();
+  }
+
+  async saveEmployee(employee: Employee): Promise<void> {
+    const editing = this.editingEmployee();
+    const branch = this.authService.selectedBranch();
+    if (!branch) return;
+
+    if (editing) {
+      await this.authService.getSupabase()
+        .from('empleados')
+        .update({
+          nombre: employee.name,
+          funciones: employee.functions,
+          puesto_contratado: employee.defaultFunction,
+          jornada_semanal: employee.weeklyHours,
+          franco: employee.dayOff,
+          carga_horaria: JSON.stringify(employee.shifts)
+        })
+        .eq('id', editing.id);
+    } else {
+      await this.authService.getSupabase()
+        .from('empleados')
+        .insert({
+          branch_id: branch.id,
+          nombre: employee.name,
+          funciones: employee.functions,
+          puesto_contratado: employee.defaultFunction,
+          jornada_semanal: employee.weeklyHours,
+          franco: employee.dayOff,
+          carga_horaria: JSON.stringify(employee.shifts)
+        });
+    }
+    await this.authService.refreshManagerData();
+    this.closeEmployeeModal();
+  }
+
+  async deleteVacation(id: number): Promise<void> {
+    await this.authService.getSupabase()
+      .from('vacaciones')
+      .delete()
+      .eq('id', id);
+    await this.loadVacations();
+  }
+
+  openNewEmployeeModal(): void {
+    this.employeeForm = {
+      name: '',
+      functions: ['vendedor'],
+      defaultFunction: 'vendedor',
+      nroVendedor: null,
+      dayOff: 'domingo',
+      shifts: [{ start: 9, end: 18 }]
+    };
+    this.editingEmployee.set(null);
+    this.showEmployeeModal.set(true);
+  }
+
+  openEditEmployeeModal(employee: Employee): void {
+    this.employeeForm = {
+      name: employee.name,
+      functions: [...employee.functions],
+      defaultFunction: employee.defaultFunction,
+      nroVendedor: (employee as any).nro_vendedor || null,
+      dayOff: employee.dayOff,
+      shifts: employee.shifts.map(s => ({ ...s }))
+    };
+    this.editingEmployee.set(employee);
+    this.showEmployeeModal.set(true);
+  }
+
+  closeEmployeeModal(): void {
+    this.showEmployeeModal.set(false);
+    this.editingEmployee.set(null);
+  }
+
+  toggleEmployeeFunction(func: JobFunction): void {
+    const idx = this.employeeForm.functions.indexOf(func);
+    if (idx >= 0) {
+      this.employeeForm.functions.splice(idx, 1);
+    } else {
+      this.employeeForm.functions.push(func);
+    }
+    if (!this.employeeForm.functions.includes(this.employeeForm.defaultFunction)) {
+      this.employeeForm.defaultFunction = this.employeeForm.functions[0] || 'vendedor';
+    }
+  }
+
+  addShift(): void {
+    this.employeeForm.shifts.push({ start: 9, end: 18 });
+  }
+
+  removeShift(index: number): void {
+    this.employeeForm.shifts.splice(index, 1);
+  }
+
+  async submitEmployeeForm(): Promise<void> {
+    if (!this.employeeForm.name.trim() || this.employeeForm.functions.length === 0) return;
+
+    const branch = this.authService.selectedBranch();
+    if (!branch) return;
+
+    const empData = {
+      nombre: this.employeeForm.name,
+      funciones: this.employeeForm.functions,
+      puesto_contratado: this.employeeForm.defaultFunction,
+      jornada_semanal: this.employeeForm.shifts.reduce((sum, s) => sum + (s.end - s.start), 0),
+      franco: this.employeeForm.dayOff,
+      carga_horaria: JSON.stringify(this.employeeForm.shifts),
+      nro_vendedor: this.employeeForm.nroVendedor
+    };
+
+    if (this.editingEmployee()) {
+      await this.authService.getSupabase()
+        .from('empleados')
+        .update(empData)
+        .eq('id', this.editingEmployee()!.id);
+    } else {
+      await this.authService.getSupabase()
+        .from('empleados')
+        .insert({ ...empData, branch_id: branch.id });
+    }
+
+    await this.authService.refreshManagerData();
+    this.closeEmployeeModal();
+  }
+
+  openNewVacationModal(): void {
+    this.vacationForm = { employeeId: '', startDate: '', endDate: '' };
+    this.showVacationModal.set(true);
+  }
+
+  openEditVacationModal(vacation: Vacation): void {
+    this.vacationForm = {
+      employeeId: vacation.employeeId.toString(),
+      startDate: vacation.startDate,
+      endDate: vacation.endDate
+    };
+    this.showVacationModal.set(true);
+  }
+
+  closeVacationModal(): void {
+    this.showVacationModal.set(false);
+  }
+
+  async submitVacationForm(): Promise<void> {
+    if (!this.vacationForm.employeeId || !this.vacationForm.startDate || !this.vacationForm.endDate) return;
+
+    await this.authService.getSupabase()
+      .from('vacaciones')
+      .insert({
+        employee_id: parseInt(this.vacationForm.employeeId),
+        start_date: this.vacationForm.startDate,
+        end_date: this.vacationForm.endDate
+      });
+
+    await this.loadVacations();
+    this.closeVacationModal();
+  }
+
+  requestDeleteEmployee(employee: Employee): void {
+    this.employeeToDelete.set(employee);
+    this.showDeleteConfirm.set(true);
+  }
+
+  cancelDelete(): void {
+    this.showDeleteConfirm.set(false);
+    this.employeeToDelete.set(null);
+  }
+
+  async confirmDelete(): Promise<void> {
+    const emp = this.employeeToDelete();
+    if (!emp) return;
+
+    await this.authService.getSupabase()
+      .from('empleados')
+      .update({ trabajando: false })
+      .eq('id', emp.id);
+
+    await this.authService.refreshManagerData();
+    this.showDeleteConfirm.set(false);
+    this.employeeToDelete.set(null);
+  }
+
+  getEmployeeName(employeeId: number): string {
+    const emp = this.allEmployees.find(e => e.id === employeeId);
+    return emp?.name || 'Desconocido';
+  }
+
+  formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-ES');
+  }
+
+  history = signal<{ date: string; placedEmployees: PlacedEmployeeData[] }[]>([]);
+
+  addToHistory(data: { date: string; placedEmployees: PlacedEmployeeData[] }): void {
+    this.history.update(h => [data, ...h].slice(0, 15));
+  }
+
+  deleteHistoryEntry(index: number): void {
+    this.history.update(h => h.filter((_, i) => i !== index));
   }
 
   getCurrentDayOff(): DayOfWeek {
@@ -111,15 +398,33 @@ export class DashboardComponent {
   }
 
   getAvailableEmployees(): Employee[] {
-    return this.allEmployees.filter((e) => !this.isEmployeePlaced(e.id) && !this.isEmployeeOnDayOff(e) && !this.isEmployeeOnVacation(e.id));
+    return this.allEmployees.filter((e) =>
+      !this.isEmployeePlaced(e.id) &&
+      !this.isEmployeeOnDayOff(e) &&
+      !this.isEmployeeOnVacation(e.id) &&
+      !e.functions.includes('encargado')
+    );
   }
 
   getEmployeesOnDayOff(): Employee[] {
-    return this.allEmployees.filter((e) => !this.isEmployeePlaced(e.id) && this.isEmployeeOnDayOff(e) && !this.isEmployeeOnVacation(e.id));
+    return this.allEmployees.filter((e) =>
+      !this.isEmployeePlaced(e.id) &&
+      this.isEmployeeOnDayOff(e) &&
+      !this.isEmployeeOnVacation(e.id) &&
+      !e.functions.includes('encargado')
+    );
   }
 
   getEmployeesOnVacation(): Employee[] {
-    return this.allEmployees.filter((e) => !this.isEmployeePlaced(e.id) && this.isEmployeeOnVacation(e.id));
+    return this.allEmployees.filter((e) =>
+      !this.isEmployeePlaced(e.id) &&
+      this.isEmployeeOnVacation(e.id) &&
+      !e.functions.includes('encargado')
+    );
+  }
+
+  getEncargados(): Employee[] {
+    return this.allEmployees.filter((e) => e.functions.includes('encargado'));
   }
 
   getVacationDates(employeeId: number): string {
@@ -241,32 +546,14 @@ export class DashboardComponent {
       const tracks: EmployeeShiftSchedule[][] = [];
 
       areaPlacements.forEach((placement) => {
+        // Cada empleado (placement) tiene su propio track
+        const trackIndex = tracks.length;
+        tracks[trackIndex] = [];
+
         placement.shifts.forEach((shift) => {
           const duration = shift.end - shift.start;
           if (duration <= 0) return;
 
-          let trackIndex = 0;
-
-          for (let i = 0; i < 10; i++) {
-            const track = tracks[i] || [];
-            const hasConflict = track.some((slot) => {
-              return (
-                (shift.start >= slot.shift.start && shift.start < slot.shift.end) ||
-                (shift.end > slot.shift.start && shift.end <= slot.shift.end) ||
-                (shift.start <= slot.shift.start && shift.end >= slot.shift.end)
-              );
-            });
-
-            if (!hasConflict) {
-              trackIndex = i;
-              break;
-            }
-            trackIndex = i + 1;
-          }
-
-          if (!tracks[trackIndex]) {
-            tracks[trackIndex] = [];
-          }
           tracks[trackIndex].push({
             placedId: placement.id,
             employee: placement.employee,
@@ -306,6 +593,8 @@ export class DashboardComponent {
       salon: 'bg-purple-500',
       inventario: 'bg-amber-500',
       limpieza: 'bg-gray-500',
+      atencion_bot: 'bg-cyan-500',
+      encargado: 'bg-red-600'
     };
     return colors[func];
   }
@@ -334,6 +623,8 @@ export class DashboardComponent {
       salon: 'bg-purple-100 text-purple-800',
       inventario: 'bg-yellow-100 text-yellow-800',
       limpieza: 'bg-gray-100 text-gray-800',
+      atencion_bot: 'bg-cyan-100 text-cyan-800',
+      encargado: 'bg-red-100 text-red-800'
     };
     return colors[func];
   }
@@ -393,7 +684,7 @@ export class DashboardComponent {
       function: p.function,
       shifts: p.shifts
     }));
-    this.saveSchedule.emit({ date: currentDate, placedEmployees: placedData });
+    this.addToHistory({ date: currentDate, placedEmployees: placedData });
   }
 
   async exportToPDF(): Promise<void> {
@@ -436,6 +727,8 @@ export class DashboardComponent {
         salon: [147, 51, 234],
         inventario: [245, 158, 11],
         limpieza: [107, 114, 128],
+        atencion_bot: [34, 211, 238],
+        encargado: [220, 38, 38]
       };
 
       pdf.setFillColor(249, 250, 251);

@@ -149,6 +149,19 @@ export class AuthService {
   }
 
   private mapDbToEmployee(emp: any): Employee {
+    let shifts = [{ start: 9, end: 18 }];
+    if (emp.carga_horaria) {
+      if (typeof emp.carga_horaria === 'string') {
+        try {
+          shifts = JSON.parse(emp.carga_horaria);
+        } catch {
+          shifts = [{ start: 9, end: 18 }];
+        }
+      } else if (Array.isArray(emp.carga_horaria)) {
+        shifts = emp.carga_horaria;
+      }
+    }
+
     return {
       id: emp.id,
       name: emp.nombre,
@@ -156,7 +169,7 @@ export class AuthService {
       defaultFunction: emp.puesto_contratado || 'vendedor',
       weeklyHours: parseFloat(emp.jornada_semanal) || 40,
       dayOff: emp.franco,
-      shifts: typeof emp.carga_horaria === 'string' ? JSON.parse(emp.carga_horaria) : (emp.carga_horaria ? [{ start: 9, end: 18 }] : [])
+      shifts
     };
   }
 
@@ -197,6 +210,10 @@ export class AuthService {
 
   selectBranch(branch: Branch): void {
     this._selectedBranch.set(branch);
+  }
+
+  clearSelectedBranch(): void {
+    this._selectedBranch.set(null);
   }
 
   getEmployeesForBranch(branchId: number): Employee[] {

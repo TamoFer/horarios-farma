@@ -71,6 +71,8 @@ export class HistoryComponent {
       salon: 'bg-purple-500',
       inventario: 'bg-amber-500',
       limpieza: 'bg-gray-500',
+      atencion_bot: 'bg-cyan-500',
+      encargado: 'bg-red-600'
     };
     return colors[func];
   }
@@ -96,19 +98,21 @@ export class HistoryComponent {
     const headerHeight = 10;
     const startY = margin + 15;
 
-    const funcColors: Record<JobFunction, [number, number, number]> = {
+      const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
       vendedor: [16, 185, 129],
       perfumera: [236, 72, 153],
       salon: [147, 51, 234],
       inventario: [245, 158, 11],
       limpieza: [107, 114, 128],
+      atencion_bot: [34, 211, 238],
+      encargado: [220, 38, 38]
     };
 
-    const areas: Area[] = ['caja', 'mostrador', 'perfumeria', 'salon', 'inventario', 'limpieza'];
+    const areas: Area[] = ['caja', 'mostrador', 'perfumeria', 'salon', 'inventario', 'limpieza', 'bot'];
 
     const areaTracks: Record<Area, { employee: string; function: JobFunction; shift: { start: number; end: number } }[][]> = {
-      caja: [], mostrador: [], perfumeria: [], salon: [], inventario: [], limpieza: []
+      caja: [], mostrador: [], perfumeria: [], salon: [], inventario: [], limpieza: [], bot: []
     };
 
     entry.placedEmployees.forEach(p => {
