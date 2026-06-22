@@ -120,7 +120,7 @@ export class DashboardComponent {
   availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado'];
   allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
-  employeeSearchText = '';
+  employeeSearchText = signal('');
   employeeSortField = signal<'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'>('name');
   employeeSortDirection = signal<'asc' | 'desc'>('asc');
   employeeSortApplied = signal(false);
@@ -128,8 +128,8 @@ export class DashboardComponent {
   filteredEmployees = computed(() => {
     let result = [...this.allEmployees];
 
-    if (this.employeeSearchText.trim()) {
-      const search = this.employeeSearchText.toLowerCase();
+    if (this.employeeSearchText().trim()) {
+      const search = this.employeeSearchText().toLowerCase();
       result = result.filter(emp =>
         emp.name.toLowerCase().includes(search) ||
         emp.functions.some(f => f.toLowerCase().includes(search)) ||
@@ -179,7 +179,7 @@ export class DashboardComponent {
   }
 
   clearEmployeeSearch(): void {
-    this.employeeSearchText = '';
+    this.employeeSearchText.set('');
   }
 
   sortEmployees(field: 'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'): void {
