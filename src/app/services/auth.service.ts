@@ -169,8 +169,9 @@ export class AuthService {
       defaultFunction: emp.puesto_contratado || 'vendedor',
       weeklyHours: parseFloat(emp.jornada_semanal) || 40,
       dayOff: emp.franco,
-      shifts
-    };
+      shifts,
+      nro_vendedor: emp.nro_vendedor
+    } as Employee & { nro_vendedor: number | null };
   }
 
   async signIn(email: string, password: string): Promise<{ error: any }> {

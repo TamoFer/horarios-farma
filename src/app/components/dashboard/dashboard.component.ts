@@ -120,6 +120,84 @@ export class DashboardComponent {
   availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado'];
   allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
+  employeeSearchText = '';
+  employeeSortField = signal<'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'>('name');
+  employeeSortDirection = signal<'asc' | 'desc'>('asc');
+  employeeSortApplied = signal(false);
+
+  filteredEmployees = computed(() => {
+    let result = [...this.allEmployees];
+
+    if (this.employeeSearchText.trim()) {
+      const search = this.employeeSearchText.toLowerCase();
+      result = result.filter(emp =>
+        emp.name.toLowerCase().includes(search) ||
+        emp.functions.some(f => f.toLowerCase().includes(search)) ||
+        this.functionLabels[emp.defaultFunction].toLowerCase().includes(search) ||
+        this.dayLabels[emp.dayOff].toLowerCase().includes(search)
+      );
+    }
+
+    if (this.employeeSortApplied()) {
+      const field = this.employeeSortField();
+      const direction = this.employeeSortDirection();
+
+      result.sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        if (field === 'name') {
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+        } else if (field === 'functions') {
+          aVal = a.functions.join(',').toLowerCase();
+          bVal = b.functions.join(',').toLowerCase();
+        } else if (field === 'defaultFunction') {
+          aVal = this.functionLabels[a.defaultFunction].toLowerCase();
+          bVal = this.functionLabels[b.defaultFunction].toLowerCase();
+        } else if (field === 'dayOff') {
+          aVal = this.dayLabels[a.dayOff].toLowerCase();
+          bVal = this.dayLabels[b.dayOff].toLowerCase();
+        } else if (field === 'nroVendedor') {
+          aVal = (a as any).nro_vendedor || 0;
+          bVal = (b as any).nro_vendedor || 0;
+        }
+
+        if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  });
+
+  onEmployeeSearchChange(): void {
+  }
+
+  onEmployeeSearch(): void {
+  }
+
+  clearEmployeeSearch(): void {
+    this.employeeSearchText = '';
+  }
+
+  sortEmployees(field: 'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'): void {
+    if (this.employeeSortField() === field) {
+      if (this.employeeSortDirection() === 'asc') {
+        this.employeeSortDirection.set('desc');
+      } else {
+        this.employeeSortField.set('name');
+        this.employeeSortDirection.set('asc');
+        this.employeeSortApplied.set(false);
+      }
+    } else {
+      this.employeeSortField.set(field);
+      this.employeeSortDirection.set('asc');
+      this.employeeSortApplied.set(true);
+    }
+  }
+
   constructor() {
     this.initEmptySchedule();
     this.loadVacations();
@@ -853,6 +931,10 @@ export class DashboardComponent {
 
   getEmployeeShifts(employee: Employee): string {
     return employee.shifts.map((s) => `${s.start}:00-${s.end}:00`).join(' / ');
+  }
+
+  getEmployeeNroVendedor(employee: Employee): string {
+    return (employee as any).nro_vendedor || '-';
   }
 
   getEmployeeTotalHours(employee: Employee): number {

@@ -242,22 +242,94 @@
             <h3 class="text-lg font-semibold text-gray-900">Empleados de la Sucursal</h3>
             <button (click)="openNewEmployeeModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nuevo Empleado</button>
           </div>
+          <div class="mb-4">
+            <div class="flex gap-2">
+              <div class="relative flex-1 max-w-md">
+                <input type="text" [(ngModel)]="employeeSearchText" (keyup.enter)="onEmployeeSearch()" placeholder="Buscar empleado..." class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                <button (click)="onEmployeeSearch()" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </button>
+              </div>
+              @if (employeeSearchText) {
+                <button (click)="clearEmployeeSearch()" class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              }
+            </div>
+          </div>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Funciones</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Función Principal</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Día Libre</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" (click)="sortEmployees('name')">
+                    <div class="flex items-center gap-1">
+                      Nombre
+                      @if (employeeSortApplied() && employeeSortField() === 'name') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        } @else {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" (click)="sortEmployees('nroVendedor')">
+                    <div class="flex items-center gap-1">
+                      N° Vendedor
+                      @if (employeeSortApplied() && employeeSortField() === 'nroVendedor') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        } @else {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" (click)="sortEmployees('functions')">
+                    <div class="flex items-center gap-1">
+                      Funciones
+                      @if (employeeSortApplied() && employeeSortField() === 'functions') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        } @else {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" (click)="sortEmployees('defaultFunction')">
+                    <div class="flex items-center gap-1">
+                      Función Principal
+                      @if (employeeSortApplied() && employeeSortField() === 'defaultFunction') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        } @else {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" (click)="sortEmployees('dayOff')">
+                    <div class="flex items-center gap-1">
+                      Día Libre
+                      @if (employeeSortApplied() && employeeSortField() === 'dayOff') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        } @else {
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        }
+                      }
+                    </div>
+                  </th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                @for (employee of allEmployees; track employee.id) {
+                @for (employee of filteredEmployees(); track employee.id) {
                   <tr>
                     <td class="px-4 py-2 text-sm text-gray-900">{{ employee.name }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeNroVendedor(employee) }}</td>
                     <td class="px-4 py-2">
                       <div class="flex flex-wrap gap-1">
                         @for (func of employee.functions; track func) {
@@ -284,6 +356,11 @@
                         </button>
                       </div>
                     </td>
+                  </tr>
+                }
+                @if (filteredEmployees().length === 0) {
+                  <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">No se encontraron empleados</td>
                   </tr>
                 }
               </tbody>
