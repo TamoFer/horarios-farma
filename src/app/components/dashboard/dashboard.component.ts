@@ -19,8 +19,10 @@ import {
   PlacedEmployeeData,
 } from '../../models/employee.model';
 import { AuthService } from '../../services/auth.service';
+import { HistoryService } from '../../services/history.service';
 import { EmployeeModalComponent } from '../employee-modal/employee-modal.component';
 import { VacationModalComponent } from '../vacation-modal/vacation-modal.component';
+import { DynamicToastService } from 'ngx-dynamic-toast';
 
 interface PlacedEmployee {
   id: number;
@@ -54,6 +56,8 @@ export class DashboardComponent {
 
   private router = inject(Router);
   private authService = inject(AuthService);
+  private historyService = inject(HistoryService);
+  private toastService = inject(DynamicToastService);
 
   employees = computed(() => {
     const branch = this.authService.selectedBranch();
@@ -114,6 +118,31 @@ export class DashboardComponent {
   constructor() {
     this.initEmptySchedule();
     this.loadVacations();
+    this.loadScheduleFromHistory();
+  }
+
+  private loadScheduleFromHistory(): void {
+    const scheduleToEdit = this.historyService.getScheduleToEdit();
+    if (scheduleToEdit) {
+      this.historyService.clearScheduleToEdit();
+      const placed: PlacedEmployee[] = scheduleToEdit.placedEmployees.map((p, index) => ({
+        id: Date.now() + index,
+        employee: {
+          id: p.employeeId,
+          name: p.employeeName,
+          functions: [p.function],
+          defaultFunction: p.function,
+          weeklyHours: 40,
+          dayOff: 'domingo' as DayOfWeek,
+          shifts: p.shifts
+        },
+        area: p.area,
+        function: p.function,
+        shifts: p.shifts
+      }));
+      this.placedEmployees.set(placed);
+      this.rebuildSchedules();
+    }
   }
 
   private async loadVacations() {
@@ -122,10 +151,13 @@ export class DashboardComponent {
 
     const { data: empleados } = await this.authService.getSupabase()
       .from('empleados')
-      .select('id')
+      .select('id, nombre')
       .eq('branch_id', branch.id);
 
-    const employeeIds = empleados?.map(e => e.id) || [];
+    const employeeMap = new Map<number, string>();
+    empleados?.forEach(e => employeeMap.set(e.id, e.nombre));
+
+    const employeeIds = Array.from(employeeMap.keys());
     if (employeeIds.length === 0) {
       this.vacations.set([]);
       return;
@@ -134,10 +166,18 @@ export class DashboardComponent {
     const { data } = await this.authService.getSupabase()
       .from('vacaciones')
       .select('*')
-      .in('employee_id', employeeIds);
+      .in('empleado_id', employeeIds);
 
     if (data) {
-      this.vacations.set(data as Vacation[]);
+      const vacationsWithNames: Vacation[] = data.map((v: any) => ({
+        id: v.id,
+        employeeId: v.empleado_id,
+        startDate: v.comienza,
+        endDate: v.finaliza,
+        employeeName: employeeMap.get(v.empleado_id) || 'Desconocido',
+        estado: v.estado || 'temporal'
+      }));
+      this.vacations.set(vacationsWithNames);
     }
   }
 
@@ -216,7 +256,20 @@ export class DashboardComponent {
       .delete()
       .eq('id', id);
     await this.loadVacations();
+    this.toastService.success('Vacación eliminada', { description: 'La vacación ha sido eliminada correctamente' });
   }
+
+  async confirmVacation(id: number): Promise<void> {
+    await this.authService.getSupabase()
+      .from('vacaciones')
+      .update({ estado: 'confirmada' })
+      .eq('id', id);
+    await this.loadVacations();
+    this.toastService.success('Vacación confirmada', { description: 'La vacación ha sido confirmada correctamente' });
+  }
+
+
+  editingVacation = signal<Vacation | null>(null);
 
   openNewEmployeeModal(): void {
     this.employeeForm = {
@@ -312,23 +365,50 @@ export class DashboardComponent {
       startDate: vacation.startDate,
       endDate: vacation.endDate
     };
+    this.editingVacation.set(vacation);
     this.showVacationModal.set(true);
   }
 
   closeVacationModal(): void {
     this.showVacationModal.set(false);
+    this.editingVacation.set(null);
   }
 
   async submitVacationForm(): Promise<void> {
     if (!this.vacationForm.employeeId || !this.vacationForm.startDate || !this.vacationForm.endDate) return;
 
-    await this.authService.getSupabase()
-      .from('vacaciones')
-      .insert({
-        employee_id: parseInt(this.vacationForm.employeeId),
-        start_date: this.vacationForm.startDate,
-        end_date: this.vacationForm.endDate
-      });
+    const editing = this.editingVacation();
+    if (editing) {
+      const { error } = await this.authService.getSupabase()
+        .from('vacaciones')
+        .update({
+          empleado_id: parseInt(this.vacationForm.employeeId),
+          comienza: this.vacationForm.startDate,
+          finaliza: this.vacationForm.endDate
+        })
+        .eq('id', editing.id);
+
+      if (error) {
+        this.toastService.error('Error al actualizar', { description: 'No se pudo actualizar la vacación' });
+      } else {
+        this.toastService.success('Vacación actualizada', { description: 'Los cambios han sido guardados correctamente' });
+      }
+    } else {
+      const { error } = await this.authService.getSupabase()
+        .from('vacaciones')
+        .insert({
+          empleado_id: parseInt(this.vacationForm.employeeId),
+          comienza: this.vacationForm.startDate,
+          finaliza: this.vacationForm.endDate,
+          estado: 'temporal'
+        });
+
+      if (error) {
+        this.toastService.error('Error al crear', { description: 'No se pudo crear la vacación' });
+      } else {
+        this.toastService.success('Vacación creada', { description: 'La nueva vacación ha sido agregada' });
+      }
+    }
 
     await this.loadVacations();
     this.closeVacationModal();
@@ -368,9 +448,9 @@ export class DashboardComponent {
     return date.toLocaleDateString('es-ES');
   }
 
-  history = signal<{ date: string; placedEmployees: PlacedEmployeeData[] }[]>([]);
+  history = signal<{ date: string; scheduleDate?: string; branchId?: number; placedEmployees: PlacedEmployeeData[] }[]>([]);
 
-  addToHistory(data: { date: string; placedEmployees: PlacedEmployeeData[] }): void {
+  addToHistory(data: { date: string; scheduleDate?: string; branchId?: number; placedEmployees: PlacedEmployeeData[] }): void {
     this.history.update(h => [data, ...h].slice(0, 15));
   }
 
@@ -676,8 +756,12 @@ export class DashboardComponent {
     this.rebuildSchedules();
   }
 
-  saveScheduleToHistory(): void {
+  async saveScheduleToHistory(): Promise<void> {
     const currentDate = this.getCurrentDateFormatted();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const branch = this.authService.selectedBranch();
+    if (!branch) return;
+
     const placedData: PlacedEmployeeData[] = this.placedEmployees().map(p => ({
       employeeId: p.employee.id,
       employeeName: p.employee.name,
@@ -685,7 +769,45 @@ export class DashboardComponent {
       function: p.function,
       shifts: p.shifts
     }));
-    this.addToHistory({ date: currentDate, placedEmployees: placedData });
+
+    const { data: existing, error: selectError } = await this.authService.getSupabase()
+      .from('historial_horarios')
+      .select('id')
+      .eq('sucursal_id', branch.id)
+      .eq('fecha', todayStr)
+      .single();
+
+    if (selectError) {
+      console.error('Error checking existing schedule:', selectError);
+    }
+
+    if (existing) {
+      const { error: updateError } = await this.authService.getSupabase()
+        .from('historial_horarios')
+        .update({
+          empleados: JSON.stringify(placedData),
+          creado: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+
+      if (updateError) {
+        console.error('Error updating schedule:', updateError);
+      }
+    } else {
+      const { error: insertError } = await this.authService.getSupabase()
+        .from('historial_horarios')
+        .insert({
+          sucursal_id: branch.id,
+          fecha: todayStr,
+          empleados: JSON.stringify(placedData)
+        });
+
+      if (insertError) {
+        console.error('Error inserting schedule:', insertError);
+      }
+    }
+
+    this.addToHistory({ date: currentDate, placedEmployees: placedData, scheduleDate: todayStr, branchId: branch.id });
   }
 
   async exportToPDF(): Promise<void> {

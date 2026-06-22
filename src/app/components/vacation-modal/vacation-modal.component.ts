@@ -56,6 +56,7 @@ export class VacationModalComponent {
       employeeId,
       startDate: start,
       endDate: end,
+      estado: 'temporal',
     };
 
     this.save.emit(vacation);

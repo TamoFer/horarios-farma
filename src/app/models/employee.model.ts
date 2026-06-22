@@ -22,13 +22,17 @@ export interface Employee {
 export interface Vacation {
   id: number;
   employeeId: number;
+  employeeName?: string;
   startDate: string;
   endDate: string;
+  estado: 'temporal' | 'confirmada';
 }
 
 export interface ScheduleHistory {
   id: string;
   date: string;
+  scheduleDate: string;
+  branchId: number;
   placedEmployees: PlacedEmployeeData[];
   createdAt: Date;
 }

@@ -9,8 +9,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideDynamicToast({
       theme: 'system',
-      position: 'top-right',
-      offset: { top: '16px', right: '16px' }
+      position: 'top-center',
+      offset: { top: '16px', left: '50%' }
     })
   ]
 };

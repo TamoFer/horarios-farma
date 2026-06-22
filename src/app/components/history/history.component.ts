@@ -1,9 +1,11 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import jsPDF from 'jspdf';
 import { HistoryService } from '../../services/history.service';
-import { ScheduleHistory, JobFunction, Area, WORK_HOURS, AREA_LABELS, FUNCTION_LABELS } from '../../models/employee.model';
+import { AuthService } from '../../services/auth.service';
+import { ScheduleHistory, JobFunction, Area, WORK_HOURS, AREA_LABELS, FUNCTION_LABELS, PlacedEmployeeData } from '../../models/employee.model';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-history',
@@ -11,19 +13,48 @@ import { ScheduleHistory, JobFunction, Area, WORK_HOURS, AREA_LABELS, FUNCTION_L
   templateUrl: './history.component.html',
   styleUrl: './history.component.css',
 })
-export class HistoryComponent {
-  private historyService = inject(HistoryService);
+export class HistoryComponent implements OnInit {
+  historyService = inject(HistoryService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
+  loadSchedule = output<ScheduleHistory>();
 
   searchDate = signal('');
   selectedSchedule = signal<ScheduleHistory | null>(null);
   showPreview = signal(false);
+  editingSchedule = signal<ScheduleHistory | null>(null);
 
   get filteredHistory(): ScheduleHistory[] {
-    const search = this.searchDate().toLowerCase();
+    const search = this.searchDate();
     if (!search) return this.historyService.history();
     return this.historyService.history().filter(h =>
-      h.date.toLowerCase().includes(search)
+      h.scheduleDate === search
     );
+  }
+
+  ngOnInit(): void {
+    this.historyService.loadFromDatabase();
+  }
+
+  canEdit(entry: ScheduleHistory): boolean {
+    const today = new Date();
+    const scheduleDate = new Date(entry.scheduleDate + 'T00:00:00');
+    today.setHours(0, 0, 0, 0);
+    return scheduleDate >= today;
+  }
+
+  getDaysAgo(entry: ScheduleHistory): string {
+    const today = new Date();
+    const scheduleDate = new Date(entry.scheduleDate + 'T00:00:00');
+    const diffTime = today.getTime() - scheduleDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`;
+    return `Hace ${Math.floor(diffDays / 30)} meses`;
   }
 
   openPreview(entry: ScheduleHistory): void {
@@ -36,13 +67,19 @@ export class HistoryComponent {
     this.selectedSchedule.set(null);
   }
 
+  editSchedule(entry: ScheduleHistory): void {
+    if (!this.canEdit(entry)) return;
+    this.historyService.setScheduleToEdit(entry);
+    this.router.navigate(['/dashboard']);
+  }
+
   downloadPDF(entry: ScheduleHistory): void {
     const pdf = this.generatePDF(entry);
     const blob = pdf.output('blob');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `horarios-${entry.date}.pdf`;
+    link.download = `horarios-${entry.scheduleDate}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -55,8 +92,8 @@ export class HistoryComponent {
     window.open(url, '_blank');
   }
 
-  deleteEntry(id: string): void {
-    this.historyService.deleteEntry(id);
+  async deleteEntry(id: string): Promise<void> {
+    await this.historyService.deleteEntry(id);
   }
 
   getAreaLabel(area: string): string {

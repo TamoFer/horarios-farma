@@ -10,7 +10,7 @@ import { DynamicToastViewportComponent } from 'ngx-dynamic-toast';
   imports: [CommonModule, RouterOutlet, DynamicToastViewportComponent],
   template: `
     <router-outlet />
-    <dt-viewport theme="system" position="top-right" [offset]="{ top: '16px', right: '16px' }"></dt-viewport>
+    <dt-viewport theme="system" position="top-center"></dt-viewport>
   `,
 })
 export class App {
