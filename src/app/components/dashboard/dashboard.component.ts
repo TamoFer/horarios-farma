@@ -837,12 +837,21 @@ export class DashboardComponent {
     const placed = this.placedEmployees();
 
     const newSchedules = this.areas.map((area) => {
-      const areaPlacements = placed.filter((p) => p.area === area);
+      let areaPlacements = placed.filter((p) => p.area === area);
+
+      if (area === 'mostrador') {
+        areaPlacements.sort((a, b) => {
+          const aStart = Math.min(...a.shifts.map(s => s.start));
+          const bStart = Math.min(...b.shifts.map(s => s.start));
+          if (a.function === 'vendedor' && b.function !== 'vendedor') return -1;
+          if (a.function !== 'vendedor' && b.function === 'vendedor') return 1;
+          return aStart - bStart;
+        });
+      }
 
       const tracks: EmployeeShiftSchedule[][] = [];
 
       areaPlacements.forEach((placement) => {
-        // Cada empleado (placement) tiene su propio track
         const trackIndex = tracks.length;
         tracks[trackIndex] = [];
 
@@ -872,8 +881,8 @@ export class DashboardComponent {
   }
 
   getBarStyle(shift: ShiftBlock): Record<string, string> {
-    const leftPercent = ((shift.start - 7) / (24 - 7)) * 100;
-    const widthPercent = ((shift.end - shift.start) / (24 - 7)) * 100;
+    const leftPercent = ((shift.start - 6) / 18) * 100;
+    const widthPercent = ((shift.end - shift.start) / 18) * 100;
 
     return {
       left: `${leftPercent}%`,
@@ -1117,8 +1126,8 @@ export class DashboardComponent {
           track.forEach((schedule) => {
             const shiftStart = schedule.shift.start;
             const shiftEnd = schedule.shift.end;
-            const leftX = margin + areaLabelWidth + ((shiftStart - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
-            const rightX = margin + areaLabelWidth + ((shiftEnd - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
+            const leftX = margin + areaLabelWidth + ((shiftStart - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
+            const rightX = margin + areaLabelWidth + ((shiftEnd - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
             const barWidth = rightX - leftX;
             const color = funcColors[schedule.function];
 

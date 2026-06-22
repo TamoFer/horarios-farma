@@ -45,7 +45,7 @@ export interface PlacedEmployeeData {
   shifts: ShiftBlock[];
 }
 
-export const WORK_HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
+export const WORK_HOURS = Array.from({ length: 18 }, (_, i) => i + 6);
 
 export const AREAS: Area[] = ['mostrador', 'caja', 'perfumeria', 'salon', 'inventario', 'limpieza', 'bot'];
 
