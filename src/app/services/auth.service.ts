@@ -230,4 +230,25 @@ export class AuthService {
       await this.loadManagerData(session.user.id);
     }
   }
+
+  async refreshEmployeesForCurrentBranch(): Promise<void> {
+    const branch = this._selectedBranch();
+    const manager = this._manager();
+    if (!branch || !manager) return;
+
+    const { data: employees } = await this.supabase
+      .from('empleados')
+      .select('*')
+      .eq('branch_id', branch.id)
+      .eq('trabajando', true);
+
+    if (employees) {
+      const mapped = employees.map((emp: any) => this.mapDbToEmployee(emp));
+      this._branchEmployees.update(map => {
+        const newMap = new Map(map);
+        newMap.set(branch.id, mapped);
+        return newMap;
+      });
+    }
+  }
 }

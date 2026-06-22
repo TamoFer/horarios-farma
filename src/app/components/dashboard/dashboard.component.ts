@@ -173,7 +173,7 @@ export class DashboardComponent {
       .from('empleados')
       .update({ trabajando: false })
       .eq('id', id);
-    await this.authService.refreshManagerData();
+    await this.authService.refreshEmployeesForCurrentBranch();
   }
 
   async saveEmployee(employee: Employee): Promise<void> {
@@ -282,7 +282,8 @@ export class DashboardComponent {
       jornada_semanal: this.employeeForm.shifts.reduce((sum, s) => sum + (s.end - s.start), 0),
       franco: this.employeeForm.dayOff,
       carga_horaria: JSON.stringify(this.employeeForm.shifts),
-      nro_vendedor: this.employeeForm.nroVendedor
+      nro_vendedor: this.employeeForm.nroVendedor,
+      trabajando: true
     };
 
     if (this.editingEmployee()) {
@@ -296,7 +297,7 @@ export class DashboardComponent {
         .insert({ ...empData, branch_id: branch.id });
     }
 
-    await this.authService.refreshManagerData();
+    await this.authService.refreshEmployeesForCurrentBranch();
     this.closeEmployeeModal();
   }
 
@@ -352,7 +353,7 @@ export class DashboardComponent {
       .update({ trabajando: false })
       .eq('id', emp.id);
 
-    await this.authService.refreshManagerData();
+    await this.authService.refreshEmployeesForCurrentBranch();
     this.showDeleteConfirm.set(false);
     this.employeeToDelete.set(null);
   }
