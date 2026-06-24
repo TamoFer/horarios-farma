@@ -10,6 +10,7 @@ import {
   DayOfWeek,
   ShiftBlock,
   Vacation,
+  ScheduleHistory,
   WORK_HOURS,
   AREAS,
   FUNCTION_TO_AREA,
@@ -43,6 +44,11 @@ interface EmployeeShiftSchedule {
 interface AreaSchedule {
   area: Area;
   tracks: EmployeeShiftSchedule[][];
+}
+
+interface MinimalEmployee {
+  id: number;
+  name: string;
 }
 
 @Component({
@@ -117,6 +123,11 @@ export class DashboardComponent {
     endDate: ''
   };
 
+  showHistoryPreviewModal = signal(false);
+  historyPreviewEntry = signal<ScheduleHistory | null>(null);
+  showHistoryDeleteConfirm = signal(false);
+  historyToDelete = signal<ScheduleHistory | null>(null);
+
   availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado'];
   allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
@@ -124,6 +135,8 @@ export class DashboardComponent {
   employeeSortField = signal<'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'>('name');
   employeeSortDirection = signal<'asc' | 'desc'>('asc');
   employeeSortApplied = signal(false);
+
+  vacationSearchText = signal('');
 
   scheduleDate = signal(new Date().toISOString().split('T')[0]);
   minScheduleDate = new Date().toISOString().split('T')[0];
@@ -184,6 +197,21 @@ export class DashboardComponent {
 
   clearEmployeeSearch(): void {
     this.employeeSearchText.set('');
+  }
+
+  filteredVacations = computed(() => {
+    const search = this.vacationSearchText().toLowerCase().trim();
+    if (!search) return this.vacations();
+    return this.vacations().filter(v =>
+      (v.employeeName || '').toLowerCase().includes(search) ||
+      v.startDate.includes(search) ||
+      v.endDate.includes(search) ||
+      v.estado.toLowerCase().includes(search)
+    );
+  });
+
+  clearVacationSearch(): void {
+    this.vacationSearchText.set('');
   }
 
   sortEmployees(field: 'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'): void {
@@ -667,14 +695,160 @@ export class DashboardComponent {
     return date.toLocaleDateString('es-ES');
   }
 
-  history = signal<{ date: string; scheduleDate?: string; branchId?: number; placedEmployees: PlacedEmployeeData[] }[]>([]);
+  history = this.historyService.history;
 
-  addToHistory(data: { date: string; scheduleDate?: string; branchId?: number; placedEmployees: PlacedEmployeeData[] }): void {
-    this.history.update(h => [data, ...h].slice(0, 15));
+  openHistoryPreview(entry: ScheduleHistory): void {
+    this.historyPreviewEntry.set(entry);
+    this.showHistoryPreviewModal.set(true);
   }
 
-  deleteHistoryEntry(index: number): void {
-    this.history.update(h => h.filter((_, i) => i !== index));
+  closeHistoryPreview(): void {
+    this.historyPreviewEntry.set(null);
+    this.showHistoryPreviewModal.set(false);
+  }
+
+  confirmDeleteHistory(entry: ScheduleHistory): void {
+    this.historyToDelete.set(entry);
+    this.showHistoryDeleteConfirm.set(true);
+  }
+
+  cancelDeleteHistory(): void {
+    this.historyToDelete.set(null);
+    this.showHistoryDeleteConfirm.set(false);
+  }
+
+  async deleteHistoryEntry(): Promise<void> {
+    const entry = this.historyToDelete();
+    if (!entry) return;
+
+    const success = await this.historyService.deleteEntry(entry.id);
+    if (success) {
+      this.toastService.success('Eliminado', { description: 'El horario ha sido eliminado correctamente' });
+    } else {
+      this.toastService.error('Error', { description: 'No se pudo eliminar el horario' });
+    }
+    this.cancelDeleteHistory();
+  }
+
+  async downloadHistoryPDF(): Promise<void> {
+    const entry = this.historyPreviewEntry();
+    if (!entry) return;
+
+    this.generatePDFForEntry(entry);
+    this.toastService.success('Descarga', { description: 'El PDF se ha descargado correctamente' });
+  }
+
+  async downloadHistoryPDFDirect(entry: ScheduleHistory): Promise<void> {
+    this.generatePDFForEntry(entry);
+    this.toastService.success('Descarga', { description: 'El PDF se ha descargado correctamente' });
+  }
+
+  private generatePDFForEntry(entry: ScheduleHistory): void {
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 10;
+    const title = `Horario - ${entry.date}`;
+    const branch = this.authService.selectedBranch();
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(title, pageWidth / 2, margin + 5, { align: 'center' });
+    if (branch) {
+      pdf.setFontSize(10);
+      pdf.text(branch.name, pageWidth / 2, margin + 10, { align: 'center' });
+    }
+
+    const areaLabelWidth = 40;
+    const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
+    const rowHeight = 10;
+    const headerHeight = 12;
+    const startY = margin + 18;
+
+    const funcColors: Record<JobFunction, [number, number, number]> = {
+      cajero: [59, 130, 246],
+      vendedor: [16, 185, 129],
+      perfumera: [236, 72, 153],
+      salon: [147, 51, 234],
+      inventario: [245, 158, 11],
+      limpieza: [107, 114, 128],
+      atencion_bot: [34, 211, 238],
+      encargado: [220, 38, 38]
+    };
+
+    pdf.setFillColor(243, 244, 246);
+    pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(75, 85, 99);
+    pdf.text('Área', margin + 2, startY + 8);
+
+    this.workHours.forEach((hour) => {
+      const x = margin + areaLabelWidth + (hour - 6) * hourWidth;
+      pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 8, { align: 'center' });
+    });
+
+    pdf.setDrawColor(229, 231, 235);
+    pdf.setLineWidth(0.3);
+
+    const areaSchedules = this.rebuildSchedulesFromHistory(entry.placedEmployees);
+
+    let currentY = startY + headerHeight;
+
+    areaSchedules.forEach((areaSchedule) => {
+      if (areaSchedule.tracks.length === 0) return;
+
+      const maxTracks = areaSchedule.tracks.length;
+      const areaRowHeight = rowHeight * maxTracks;
+
+      pdf.setFillColor(249, 250, 251);
+      pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight, 'F');
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(31, 41, 55);
+      pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 3);
+
+      pdf.setDrawColor(229, 231, 235);
+      pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight);
+
+      this.workHours.forEach((_, i) => {
+        const x = margin + areaLabelWidth + i * hourWidth;
+        pdf.rect(x, currentY, hourWidth, areaRowHeight);
+      });
+
+      areaSchedule.tracks.forEach((track, trackIndex) => {
+        const trackY = currentY + trackIndex * rowHeight;
+
+        track.forEach((schedule) => {
+          const shiftStart = schedule.shift.start;
+          const shiftEnd = schedule.shift.end;
+          const leftX = margin + areaLabelWidth + ((shiftStart - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
+          const rightX = margin + areaLabelWidth + ((shiftEnd - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
+          const barWidth = rightX - leftX;
+          const color = funcColors[schedule.function];
+
+          pdf.setFillColor(color[0], color[1], color[2]);
+          pdf.roundedRect(leftX, trackY + 1, barWidth, rowHeight - 2, 1, 1, 'F');
+
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(255, 255, 255);
+          const name = (schedule.employee as any).name?.length > 15 ? (schedule.employee as any).name.substring(0, 13) + '..' : (schedule.employee as any).name;
+          pdf.text(name, leftX + barWidth / 2, trackY + rowHeight / 2 + 1, { align: 'center' });
+        });
+      });
+
+      currentY += areaRowHeight;
+    });
+
+    const branchName = branch?.name || 'Sucursal';
+    pdf.save(`horario_${branchName}_${entry.scheduleDate}.pdf`);
   }
 
   getCurrentDayOff(): DayOfWeek {
@@ -686,6 +860,34 @@ export class DashboardComponent {
 
   isEmployeeOnDayOff(employee: Employee): boolean {
     return employee.dayOff === this.getCurrentDayOff();
+  }
+
+  getPreviewEntriesForArea(entry: ScheduleHistory, area: Area): PlacedEmployeeData[] {
+    return entry.placedEmployees.filter(p => p.area === area);
+  }
+
+  getPreviewCellEntries(entry: ScheduleHistory, area: Area, hour: number): PlacedEmployeeData[] {
+    return entry.placedEmployees.filter(p =>
+      p.area === area && p.shifts.some(s => hour >= s.start && hour < s.end)
+    );
+  }
+
+  getPreviewAreaSchedules(entry: ScheduleHistory): AreaSchedule[] {
+    return this.rebuildSchedulesFromHistory(entry.placedEmployees);
+  }
+
+  getFunctionColor(fn: JobFunction): string {
+    const colors: Record<JobFunction, string> = {
+      cajero: '#3b82f6',
+      vendedor: '#10b981',
+      perfumera: '#ec4899',
+      salon: '#9333ea',
+      inventario: '#f59e0b',
+      limpieza: '#6b7280',
+      atencion_bot: '#22d3ee',
+      encargado: '#dc2626'
+    };
+    return colors[fn] || '#9ca3af';
   }
 
   isToday(): boolean {
@@ -891,6 +1093,51 @@ export class DashboardComponent {
     this.areaSchedules.set(newSchedules);
   }
 
+  rebuildSchedulesFromHistory(placedData: PlacedEmployeeData[]): AreaSchedule[] {
+    const newSchedules = this.areas.map((area) => {
+      let areaPlacements = placedData.filter((p) => p.area === area);
+
+      if (area === 'mostrador') {
+        areaPlacements.sort((a, b) => {
+          const aStart = Math.min(...a.shifts.map(s => s.start));
+          const bStart = Math.min(...b.shifts.map(s => s.start));
+          if (a.function === 'vendedor' && b.function !== 'vendedor') return -1;
+          if (a.function !== 'vendedor' && b.function === 'vendedor') return 1;
+          return aStart - bStart;
+        });
+      }
+
+      const tracks: EmployeeShiftSchedule[][] = [];
+
+      areaPlacements.forEach((placement, idx) => {
+        const trackIndex = tracks.length;
+        tracks[trackIndex] = [];
+
+        const minimalEmployee: MinimalEmployee = {
+          id: placement.employeeId,
+          name: placement.employeeName
+        };
+
+        placement.shifts.forEach((shift) => {
+          const duration = shift.end - shift.start;
+          if (duration <= 0) return;
+
+          tracks[trackIndex].push({
+            placedId: idx,
+            employee: minimalEmployee as any,
+            function: placement.function,
+            shift,
+            trackIndex,
+          });
+        });
+      });
+
+      return { area, tracks };
+    });
+
+    return newSchedules;
+  }
+
   removePlacedEmployee(placedId: number): void {
     this.placedEmployees.update((list) => list.filter((p) => p.id !== placedId));
     this.rebuildSchedules();
@@ -1090,41 +1337,49 @@ export class DashboardComponent {
     const { data: existing, error: selectError } = await this.authService.getSupabase()
       .from('historial_horarios')
       .select('id')
-      .eq('sucursal_id', branch.id)
-      .eq('fecha', todayStr)
+      .eq('branch_id', branch.id.toString())
+      .eq('schedule_date', todayStr)
       .single();
 
-    if (selectError) {
+    if (selectError && selectError.code !== 'PGRST116') {
       console.error('Error checking existing schedule:', selectError);
+      this.toastService.error('Error', { description: 'No se pudo verificar el horario existente' });
+      return;
     }
 
     if (existing) {
       const { error: updateError } = await this.authService.getSupabase()
         .from('historial_horarios')
         .update({
-          empleados: JSON.stringify(placedData),
-          creado: new Date().toISOString()
+          placed_employees: JSON.stringify(placedData),
+          created_at: new Date().toISOString()
         })
         .eq('id', existing.id);
 
       if (updateError) {
         console.error('Error updating schedule:', updateError);
+        this.toastService.error('Error', { description: 'No se pudo actualizar el horario' });
+      } else {
+        this.toastService.success('Horario actualizado', { description: 'El horario se guardó correctamente' });
+        await this.historyService.loadFromDatabase();
       }
     } else {
       const { error: insertError } = await this.authService.getSupabase()
         .from('historial_horarios')
         .insert({
-          sucursal_id: branch.id,
-          fecha: todayStr,
-          empleados: JSON.stringify(placedData)
+          branch_id: branch.id.toString(),
+          schedule_date: todayStr,
+          placed_employees: JSON.stringify(placedData)
         });
 
       if (insertError) {
         console.error('Error inserting schedule:', insertError);
+        this.toastService.error('Error', { description: 'No se pudo guardar el horario' });
+      } else {
+        this.toastService.success('Horario guardado', { description: 'El horario se guardó correctamente' });
+        await this.historyService.loadFromDatabase();
       }
     }
-
-    this.addToHistory({ date: currentDate, placedEmployees: placedData, scheduleDate: todayStr, branchId: branch.id });
   }
 
   async exportToPDF(): Promise<void> {

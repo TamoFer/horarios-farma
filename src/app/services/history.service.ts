@@ -25,8 +25,8 @@ export class HistoryService {
       const { data, error } = await this.authService.getSupabase()
         .from('historial_horarios')
         .select('*')
-        .eq('sucursal_id', branch.id)
-        .order('fecha', { ascending: false })
+        .eq('branch_id', branch.id.toString())
+        .order('schedule_date', { ascending: false })
         .limit(this.MAX_HISTORY);
 
       if (error) {
@@ -36,14 +36,15 @@ export class HistoryService {
       }
 
       const historyItems: ScheduleHistory[] = (data || []).map((item: any) => ({
-        id: item.id.toString(),
-        date: this.formatDisplayDate(item.fecha),
-        scheduleDate: item.fecha,
-        branchId: item.sucursal_id,
-        placedEmployees: typeof item.empleados === 'string' 
-          ? JSON.parse(item.empleados) 
-          : item.empleados || [],
-        createdAt: new Date(item.creado)
+        id: item.id,
+        date: this.formatDisplayDate(item.schedule_date),
+        scheduleDate: item.schedule_date,
+        branchId: item.branch_id,
+        placedEmployees: typeof item.placed_employees === 'string'
+          ? JSON.parse(item.placed_employees)
+          : item.placed_employees || [],
+        createdAt: new Date(item.created_at),
+        isFinal: item.is_final || false
       }));
 
       this.history.set(historyItems);
@@ -67,32 +68,55 @@ export class HistoryService {
   }
 
   getByDate(date: string): ScheduleHistory | undefined {
-    return this.history().find(h => h.date === date);
+    return this.history().find(h => h.scheduleDate === date);
   }
 
-  async deleteEntry(id: string): Promise<void> {
-    await this.authService.getSupabase()
+  async deleteEntry(id: string): Promise<boolean> {
+    const { error } = await this.authService.getSupabase()
       .from('historial_horarios')
       .delete()
-      .eq('id', parseInt(id));
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting entry:', error);
+      return false;
+    }
 
     this.history.update(list => list.filter(h => h.id !== id));
+    return true;
   }
 
   async updateEntry(id: string, placedEmployees: PlacedEmployeeData[]): Promise<void> {
     await this.authService.getSupabase()
       .from('historial_horarios')
       .update({
-        empleados: JSON.stringify(placedEmployees),
-        creado: new Date().toISOString()
+        placed_employees: JSON.stringify(placedEmployees),
+        created_at: new Date().toISOString()
       })
-      .eq('id', parseInt(id));
+      .eq('id', id);
 
-    this.history.update(list => list.map(h => 
-      h.id === id 
+    this.history.update(list => list.map(h =>
+      h.id === id
         ? { ...h, placedEmployees, createdAt: new Date() }
         : h
     ));
+  }
+
+  async finalizeEntry(id: string): Promise<boolean> {
+    const { error } = await this.authService.getSupabase()
+      .from('historial_horarios')
+      .update({ is_final: true })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error finalizing entry:', error);
+      return false;
+    }
+
+    this.history.update(list => list.map(h =>
+      h.id === id ? { ...h, isFinal: true } : h
+    ));
+    return true;
   }
 
   setScheduleToEdit(schedule: ScheduleHistory): void {

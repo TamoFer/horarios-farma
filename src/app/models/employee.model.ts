@@ -32,9 +32,10 @@ export interface ScheduleHistory {
   id: string;
   date: string;
   scheduleDate: string;
-  branchId: number;
+  branchId: string;
   placedEmployees: PlacedEmployeeData[];
   createdAt: Date;
+  isFinal?: boolean;
 }
 
 export interface PlacedEmployeeData {
