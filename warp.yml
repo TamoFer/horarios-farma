@@ -1,0 +1,26 @@
+name: "Horarios Farmacia"
+notification:
+  enabled: true
+  sound: true
+  when:
+    - command_complete
+    - deployment_complete
+    - build_failed
+    - tests_passed
+    - tests_failed
+
+commands:
+  build:
+    command: npm run build
+    notify_on_complete: true
+    notify_on_failure: true
+
+  serve:
+    command: npm run start
+    notify_on_complete: false
+    notify_on_failure: true
+
+  test:
+    command: npm run test
+    notify_on_complete: true
+    notify_on_failure: true

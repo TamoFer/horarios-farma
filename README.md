@@ -1,59 +1,57 @@
 # HorariosFarma
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.15.
+Pharmacy scheduling application (Angular 21 + Supabase) for managing branch schedules, employees, and vacations.
 
-## Development server
+## Tech Stack
+- **Frontend**: Angular 21, TailwindCSS, Angular Signals
+- **Backend**: Supabase (PostgreSQL + Auth + RLS)
+- **Notifications**: ngx-dynamic-toast + motion
 
-To start a local development server, run:
+## Setup
 
 ```bash
+npm install
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Supabase
 
-## Code scaffolding
+**Project URL**: `https://gkqacjcqeljjyhzdtpgv.supabase.co`
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+**Tables**: `sucursales`, `empleados`, `vacaciones`, `roles_usuarios`, `encargados_sucursales`
 
-```bash
-ng generate component component-name
+**Key columns**:
+- `empleados.funciones` - JSONB array of job functions
+- `empleados.puesto_contratado` - contracted position
+- `empleados.carga_horaria` - JSONB shift schedule
+- `empleados.nro_vendedor` - employee number
+
+## ngx-dynamic-toast
+
+```typescript
+// app.config.ts
+import { provideDynamicToast } from 'ngx-dynamic-toast';
+
+providers: [
+  provideDynamicToast({ theme: 'system', position: 'top-right', offset: { top: '16px', right: '16px' } })
+]
+
+// app.ts
+import { DynamicToastViewportComponent } from 'ngx-dynamic-toast';
+// Add <dt-viewport theme="system" position="top-right" ...></dt-viewport> to template
+
+// Component usage
+import { DynamicToastService } from 'ngx-dynamic-toast';
+
+constructor(private toast = inject(DynamicToastService)) {}
+
+this.toast.success('Title', { description: 'Message', duration: 4000 });
+this.toast.error('Title', { description: 'Message' });
+this.toast.info('Title', { duration: 3000 });
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Key Features
+- Admin sees all branches; manager sees assigned branches only
+- Employees with role "encargado" excluded from scheduling grid
+- Bot employees (atencion_bot) displayed in cyan
+- Split shifts shown on same employee row

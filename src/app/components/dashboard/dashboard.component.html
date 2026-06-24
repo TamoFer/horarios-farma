@@ -1,343 +1,972 @@
 <div class="flex h-full bg-gray-50">
-  <aside
-    class="bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 flex-shrink-0"
-    [class.w-80]="sidebarVisible()"
-    [class.w-0]="!sidebarVisible()"
-    [class.opacity-100]="sidebarVisible()"
-    [class.opacity-0]="!sidebarVisible()"
-    [class.overflow-hidden]="!sidebarVisible()"
-  >
+  @if (currentSection() === 'horario') {
+  <aside class="bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 flex-shrink-0 w-80">
     @if (sidebarVisible()) {
-      <div class="w-80">
-        <div class="p-4 border-b border-gray-200 bg-indigo-600 flex items-center justify-between">
-          <div>
-            <h1 class="text-xl font-bold text-white">Horarios Farmacia</h1>
-            <p class="text-indigo-200 text-sm mt-1">Gestión de empleados</p>
-          </div>
-          <button
-            (click)="toggleSidebar()"
-            class="text-white hover:text-indigo-200 transition-colors"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
-          </button>
+    <div class="w-80">
+      <div class="p-4 border-b border-gray-200 bg-indigo-600 flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-bold text-white">Horarios Farmacia</h1>
+          <p class="text-indigo-200 text-sm mt-1">Gestión de empleados</p>
         </div>
-
-        <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Empleados ({{ getAvailableEmployees().length }})
-            </h2>
-            <span class="text-xs text-gray-400">Arrastrá a la grilla</span>
-          </div>
-
-          <div class="space-y-3">
-            @for (employee of getAvailableEmployees(); track employee.id) {
-              <div
-                class="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
-                draggable="true"
-                (dragstart)="onEmployeeDragStart($event, employee)"
-                (dragend)="onDragEnded($event)"
-              >
-                <div class="flex items-start gap-3">
-                  <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <span class="text-indigo-600 font-semibold text-sm">
-                      {{ employee.name.charAt(0) }}
-                    </span>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <p class="text-sm font-medium text-gray-900 truncate">
-                        {{ employee.name }}
-                      </p>
-                      @if (isSplitShift(employee)) {
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">
-                          Partido
-                        </span>
-                      }
-                    </div>
-                    <div class="flex flex-wrap gap-1 mt-1">
-                      @for (func of getEmployeeFunctions(employee); track func) {
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(func) }}">
-                          {{ functionLabels[func] }}
-                        </span>
-                      }
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500">
-                      <div class="flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>{{ getEmployeeShifts(employee) }}</span>
-                      </div>
-                    </div>
+        <button (click)="toggleSidebar()" class="text-white hover:text-indigo-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Empleados ({{ getAvailableEmployees().length }})
+          </h2>
+          <span class="text-xs text-gray-400">Arrastrá a la grilla</span>
+        </div>
+        <div class="space-y-3">
+          @for (employee of getAvailableEmployees(); track employee.id) {
+          <div
+            class="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+            draggable="true" (dragstart)="onEmployeeDragStart($event, employee)" (dragend)="onDragEnded($event)">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <span class="text-indigo-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ employee.name }}</p>
+                  @if (isSplitShift(employee)) {
+                  <span
+                    class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">Cortado</span>
+                  }
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  @for (func of getEmployeeFunctions(employee); track func) {
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(func) }}">
+                    {{ functionLabels[func] }}
+                  </span>
+                  }
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                  <div class="flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ getEmployeeShifts(employee) }}</span>
                   </div>
                 </div>
               </div>
-            }
-
-            @if (getEmployeesOnDayOff().length > 0) {
-              <div class="border-t border-gray-200 pt-3 mt-3">
-                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Franco ({{ getEmployeesOnDayOff().length }})
-                </h3>
-                @for (employee of getEmployeesOnDayOff(); track employee.id) {
-                  <div
-                    class="bg-gray-100 rounded-lg border border-gray-200 p-3 opacity-60 cursor-not-allowed"
-                  >
-                    <div class="flex items-start gap-3">
-                      <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                        <span class="text-gray-600 font-semibold text-sm">
-                          {{ employee.name.charAt(0) }}
-                        </span>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                          <p class="text-sm font-medium text-gray-500 truncate">
-                            {{ employee.name }}
-                          </p>
-                        </div>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                          @for (func of getEmployeeFunctions(employee); track func) {
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-500">
-                              {{ functionLabels[func] }}
-                            </span>
-                          }
-                        </div>
-                        <div class="mt-2 text-xs text-gray-400">
-                          <div class="flex items-center gap-1">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
-                            <span>{{ dayLabels[employee.dayOff] }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+            </div>
+          </div>
+          }
+          @if (getEmployeesOnDayOff().length > 0) {
+          <div class="border-t border-gray-200 pt-3 mt-3">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Franco ({{
+              getEmployeesOnDayOff().length }})</h3>
+            @for (employee of getEmployeesOnDayOff(); track employee.id) {
+            <div class="bg-gray-100 rounded-lg border border-gray-200 p-3 opacity-60 cursor-not-allowed">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+                  <span class="text-gray-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-500 truncate">{{ employee.name }}</p>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    @for (func of getEmployeeFunctions(employee); track func) {
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-500">{{
+                      functionLabels[func] }}</span>
+                    }
                   </div>
-                }
-              </div>
-            }
-
-            @if (getEmployeesOnVacation().length > 0) {
-              <div class="border-t border-gray-200 pt-3 mt-3">
-                <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">
-                  Vacaciones ({{ getEmployeesOnVacation().length }})
-                </h3>
-                @for (employee of getEmployeesOnVacation(); track employee.id) {
-                  <div
-                    class="bg-blue-50 rounded-lg border border-blue-200 p-3 opacity-75 cursor-not-allowed"
-                  >
-                    <div class="flex items-start gap-3">
-                      <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
-                        <span class="text-blue-600 font-semibold text-sm">
-                          {{ employee.name.charAt(0) }}
-                        </span>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                          <p class="text-sm font-medium text-blue-700 truncate">
-                            {{ employee.name }}
-                          </p>
-                        </div>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                          @for (func of getEmployeeFunctions(employee); track func) {
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-600">
-                              {{ functionLabels[func] }}
-                            </span>
-                          }
-                        </div>
-                        <div class="mt-2 text-xs text-blue-500">
-                          <div class="flex items-center gap-1">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span>{{ getVacationDates(employee.id) }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  <div class="mt-2 text-xs text-gray-400">
+                    <span>{{ dayLabels[employee.dayOff] }}</span>
                   </div>
-                }
+                </div>
               </div>
-            }
-
-            @if (getAvailableEmployees().length === 0 && getEmployeesOnDayOff().length === 0 && getEmployeesOnVacation().length === 0) {
-              <p class="text-sm text-gray-400 text-center py-4">
-                Todos los empleados están en la grilla
-              </p>
+            </div>
             }
           </div>
+          }
+          @if (getEmployeesOnVacation().length > 0) {
+          <div class="border-t border-gray-200 pt-3 mt-3">
+            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">Vacaciones ({{
+              getEmployeesOnVacation().length }})</h3>
+            @for (employee of getEmployeesOnVacation(); track employee.id) {
+            <div class="bg-blue-50 rounded-lg border border-blue-200 p-3 opacity-75 cursor-not-allowed">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
+                  <span class="text-blue-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-blue-700 truncate">{{ employee.name }}</p>
+                  <div class="mt-2 text-xs text-blue-500">{{ getVacationDates(employee.id) }}</div>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+          }
+          @if (getEncargados().length > 0) {
+          <div class="border-t border-gray-200 pt-3 mt-3">
+            <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Encargados ({{
+              getEncargados().length }})</h3>
+            @for (employee of getEncargados(); track employee.id) {
+            <div class="bg-red-50 rounded-lg border border-red-200 p-3 opacity-75 cursor-not-allowed">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
+                  <span class="text-red-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-red-700 truncate">{{ employee.name }}</p>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+          }
         </div>
       </div>
+    </div>
     }
   </aside>
-
   @if (!sidebarVisible()) {
-    <button
-      (click)="toggleSidebar()"
-      class="absolute left-0 top-20 z-10 bg-indigo-600 text-white px-1 py-3 rounded-r-lg hover:bg-indigo-700 transition-all duration-300"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-      </svg>
-    </button>
+  <button (click)="toggleSidebar()"
+    class="absolute left-0 top-20 z-10 bg-indigo-600 text-white px-1 py-3 rounded-r-lg hover:bg-indigo-700 transition-all duration-300">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+    </svg>
+  </button>
+  }
   }
 
   <main class="flex-1 overflow-auto">
     <div class="p-6">
-      <div class="mb-4 flex items-center justify-between">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">{{ getCurrentDateFormatted() }}</h2>
-          <p class="text-gray-500 text-sm mt-1">Horario del día | 7:00 AM - 12:00 AM</p>
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            @if (!isToday()) {
+              <button (click)="goToToday()" class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md" title="Volver a hoy">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            }
+            <h2 class="text-2xl font-bold text-gray-900">{{ getScheduleDateFormatted() }}</h2>
+            <div class="relative">
+              <button (click)="toggleDatePicker()"
+                class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md" title="Seleccionar fecha">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+              @if (showDatePicker()) {
+                <input type="date" [value]="scheduleDate()" (change)="onDateSelected($event)"
+                  [min]="minScheduleDate" (blur)="showDatePicker.set(false)"
+                  class="absolute top-full left-0 mt-1 p-2 border border-gray-300 rounded-lg bg-white shadow-lg z-50">
+              }
+            </div>
+            <button (click)="goToNextDay()" class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+              title="Siguiente día">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="goToBranchSelect()"
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Sucursales
+            </button>
+            <button (click)="signOut()"
+              class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
+        <div class="flex gap-1 border-b border-gray-200">
+          <button (click)="setSection('horario')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'horario' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Horarios</button>
+          <button (click)="setSection('empleados')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'empleados' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Empleados</button>
+          <button (click)="setSection('vacaciones')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'vacaciones' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Vacaciones</button>
+          <button (click)="setSection('historial')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'historial' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Historial</button>
+        </div>
+      </div>
+
+      @if (currentSection() === 'horario') {
+      <div class="mb-4 flex items-center justify-between">
+        <div></div>
         <div class="flex gap-2">
-          <button
-            (click)="clearGrid()"
-            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2"
-          >
+          <button (click)="clearGrid()"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
             Limpiar Grilla
           </button>
-          <button (click)="saveScheduleToHistory()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
-            Guardar Cambios
-          </button>
-          <button (click)="exportToPDF()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-            Exportar
-          </button>
-          <button
-            (click)="autoAssignEmployees()"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
-          >
+          <button (click)="saveScheduleToHistory()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">Guardar
+            Cambios</button>
+          <button (click)="exportToPDF()"
+            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">Exportar</button>
+          <button (click)="autoAssignEmployees()"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             Auto Asignar
           </button>
         </div>
       </div>
 
-      <div #scheduleGrid class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <div class="min-w-[1000px]">
             <div class="flex border-b border-gray-200 bg-gray-50">
-              <div class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0">
-                Área
-              </div>
+              <div
+                class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0">
+                Área</div>
               @for (hour of workHours; track hour) {
-                <div class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100">
-                  {{ formatHour(hour) }}
-                </div>
+              <div
+                class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100">
+                {{ formatHour(hour) }}</div>
               }
             </div>
-
             @for (areaSchedule of areaSchedules(); track areaSchedule.area) {
-              <div class="border-b border-gray-200">
-                <div class="flex">
-                  <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
-                    <div class="flex items-center gap-2">
-                      <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
-                      <span class="font-medium text-gray-900 text-sm">
-                        {{ areaLabels[areaSchedule.area] }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="flex-1 relative">
-                    <div class="flex border-l border-gray-100">
-                      @for (hour of workHours; track hour) {
-                        <div
-                          class="flex-1 h-8 border-r border-gray-100 drop-zone"
-                          [attr.data-area]="areaSchedule.area"
-                          [attr.data-hour]="hour"
-                          (dragover)="onDragOver($event)"
-                          (drop)="onDropOnCell($event, areaSchedule.area, hour)"
-                        ></div>
-                      }
-                    </div>
-
-                    @for (track of areaSchedule.tracks; track $index) {
-                      <div class="relative h-10 border-t border-gray-100">
-                        @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
-                          <div
-                            class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{ getBarColor(schedule.function) }} shadow-sm group cursor-pointer"
-                            [ngStyle]="getBarStyle(schedule.shift)"
-                            (dblclick)="openEditModal(schedule.placedId)"
-                          >
-                            <div class="flex items-center gap-1 overflow-hidden">
-                              <span class="text-white text-xs font-medium whitespace-nowrap">
-                                {{ schedule.employee.name }}
-                              </span>
-                              <svg class="w-3 h-3 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                              </svg>
-                            </div>
-                            <button
-                              (click)="removePlacedEmployee(schedule.placedId)"
-                              class="opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-red-200 ml-2"
-                            >
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        }
-                      </div>
-                    }
+            <div class="border-b border-gray-200">
+              <div class="flex">
+                <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                    <span class="font-medium text-gray-900 text-sm">{{ areaLabels[areaSchedule.area] }}</span>
                   </div>
                 </div>
+                <div class="flex-1 relative">
+                  <div class="flex border-l border-gray-100">
+                    @for (hour of workHours; track hour) {
+                    <div class="flex-1 h-8 border-r border-gray-100 drop-zone" [attr.data-area]="areaSchedule.area"
+                      [attr.data-hour]="hour" (dragover)="onDragOver($event)"
+                      (drop)="onDropOnCell($event, areaSchedule.area, hour)"></div>
+                    }
+                  </div>
+                  @for (track of areaSchedule.tracks; track $index) {
+                  <div class="relative h-10 border-t border-gray-100">
+                    @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
+                    <div
+                      class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{ getBarColor(schedule.function) }} shadow-sm group cursor-pointer"
+                      [ngStyle]="getBarStyle(schedule.shift)" (dblclick)="openEditModal(schedule.placedId)">
+                      <div class="flex items-center gap-1 overflow-hidden">
+                        <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name
+                          }}</span>
+                        <svg class="w-3 h-3 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd"
+                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                            clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                      <button (click)="removePlacedEmployee(schedule.placedId)"
+                        class="opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-red-200 ml-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    }
+                  </div>
+                  }
+                </div>
               </div>
+            </div>
             }
           </div>
         </div>
       </div>
 
       <div class="mt-4 flex flex-wrap gap-4">
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-blue-500 rounded"></span>
-          <span>Cajero</span>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600 ml-4"><span
+            class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">Cortado</span><span>Horario
+            dividido</span></div>
+      </div>
+      }
+
+      @if (currentSection() === 'empleados') {
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Empleados de la Sucursal</h3>
+          <button (click)="openNewEmployeeModal()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nuevo
+            Empleado</button>
         </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-emerald-500 rounded"></span>
-          <span>Vendedor</span>
+        <div class="mb-4">
+          <div class="flex gap-2">
+            <div class="relative flex-1 max-w-md">
+              <input type="text" [ngModel]="employeeSearchText()" (ngModelChange)="employeeSearchText.set($event)"
+                placeholder="Buscar empleado..."
+                class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+            </div>
+            @if (employeeSearchText()) {
+            <button (click)="clearEmployeeSearch()"
+              class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            }
+          </div>
         </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-pink-500 rounded"></span>
-          <span>Perfumera</span>
-        </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-purple-500 rounded"></span>
-          <span>Salón</span>
-        </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-amber-500 rounded"></span>
-          <span>Inventario</span>
-        </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="w-4 h-4 bg-gray-500 rounded"></span>
-          <span>Limpieza</span>
-        </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600 ml-4">
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">
-            Partido
-          </span>
-          <span>Horario dividido</span>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  (click)="sortEmployees('name')">
+                  <div class="flex items-center gap-1">
+                    Nombre
+                    @if (employeeSortApplied() && employeeSortField() === 'name') {
+                    @if (employeeSortDirection() === 'asc') {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    }
+                    }
+                  </div>
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  (click)="sortEmployees('nroVendedor')">
+                  <div class="flex items-center gap-1">
+                    N° Vendedor
+                    @if (employeeSortApplied() && employeeSortField() === 'nroVendedor') {
+                    @if (employeeSortDirection() === 'asc') {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    }
+                    }
+                  </div>
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  (click)="sortEmployees('functions')">
+                  <div class="flex items-center gap-1">
+                    Funciones
+                    @if (employeeSortApplied() && employeeSortField() === 'functions') {
+                    @if (employeeSortDirection() === 'asc') {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    }
+                    }
+                  </div>
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  (click)="sortEmployees('defaultFunction')">
+                  <div class="flex items-center gap-1">
+                    Función Principal
+                    @if (employeeSortApplied() && employeeSortField() === 'defaultFunction') {
+                    @if (employeeSortDirection() === 'asc') {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    }
+                    }
+                  </div>
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  (click)="sortEmployees('dayOff')">
+                  <div class="flex items-center gap-1">
+                    Día Libre
+                    @if (employeeSortApplied() && employeeSortField() === 'dayOff') {
+                    @if (employeeSortDirection() === 'asc') {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    }
+                    }
+                  </div>
+                </th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (employee of filteredEmployees(); track employee.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ employee.name }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeNroVendedor(employee) }}</td>
+                <td class="px-4 py-2">
+                  <div class="flex flex-wrap gap-1">
+                    @for (func of employee.functions; track func) {
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(func) }}">{{
+                      functionLabels[func] }}</span>
+                    }
+                  </div>
+                </td>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ functionLabels[employee.defaultFunction] }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[employee.dayOff] }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeShifts(employee) }}</td>
+                <td class="px-4 py-2 text-sm">
+                  <div class="flex items-center gap-1">
+                    <button (click)="openEditEmployeeModal(employee)"
+                      class="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button (click)="openStatusModal(employee, 'renuncia')"
+                      class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md" title="Renuncia">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                    </button>
+                    <button (click)="openStatusModal(employee, 'despedido')"
+                      class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md" title="Despedido">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </button>
+                    <button (click)="openStatusModal(employee, 'cambio_sucursal')"
+                      class="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md"
+                      title="Cambio de Sucursal">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              @if (filteredEmployees().length === 0) {
+              <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-gray-500">No se encontraron empleados</td>
+              </tr>
+              }
+            </tbody>
+          </table>
         </div>
       </div>
+      }
+
+      @if (currentSection() === 'vacaciones') {
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Vacaciones</h3>
+          <button (click)="openNewVacationModal()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
+            Vacación</button>
+        </div>
+        <div class="mb-4">
+          <div class="flex gap-2">
+            <div class="relative flex-1 max-w-md">
+              <input type="text" [ngModel]="vacationSearchText()" (ngModelChange)="vacationSearchText.set($event)"
+                placeholder="Buscar vacaciones..."
+                class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+            </div>
+            @if (vacationSearchText()) {
+            <button (click)="clearVacationSearch()"
+              class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            }
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hasta</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (vacation of filteredVacations(); track vacation.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ vacation.employeeName || 'Desconocido' }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ formatDate(vacation.startDate) }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ formatDate(vacation.endDate) }}</td>
+                <td class="px-4 py-2">
+                  <span
+                    class="px-2 py-1 rounded text-xs font-medium {{ vacation.estado === 'confirmada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                    {{ vacation.estado === 'confirmada' ? 'Confirmada' : 'Temporal' }}
+                  </span>
+                </td>
+                <td class="px-4 py-2">
+                  <div class="flex items-center gap-1">
+                    @if (vacation.estado === 'temporal') {
+                    <button (click)="confirmVacation(vacation.id)"
+                      class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Confirmar">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                    <button (click)="openEditVacationModal(vacation)"
+                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    }
+                    <button (click)="deleteVacation(vacation.id)"
+                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
+
+      @if (currentSection() === 'historial') {
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Historial de Horarios</h3>
+        @if (history().length === 0) {
+        <p class="text-gray-500 text-sm">No hay horarios guardados en el historial.</p>
+        } @else {
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sucursal</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleados</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (entry of history(); track entry.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ entry.date }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ authService.selectedBranch()?.name || entry.branchId }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ entry.placedEmployees.length }}</td>
+                <td class="px-4 py-2 text-sm">
+                  @if (entry.isFinal) {
+                  <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Finalizado</span>
+                  } @else {
+                  <span class="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Borrador</span>
+                  }
+                </td>
+                <td class="px-4 py-2 text-sm">
+                  <div class="flex items-center gap-1">
+                    <button (click)="openHistoryPreview(entry)"
+                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Ver">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button (click)="downloadHistoryPDFDirect(entry)"
+                      class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Descargar PDF">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </button>
+                    @if (!entry.isFinal) {
+                    <button (click)="confirmDeleteHistory(entry)"
+                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </div>
+      }
     </div>
   </main>
 </div>
 
+@if (showHistoryDeleteConfirm()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-gray-900">Confirmar eliminación</h3>
+    </div>
+    <p class="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este horario? Esta acción no se puede deshacer.</p>
+    <div class="flex justify-end gap-2">
+      <button (click)="cancelDeleteHistory()"
+        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium">
+        Cancelar
+      </button>
+      <button (click)="deleteHistoryEntry()"
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
+        Eliminar
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+@if (showHistoryPreviewModal() && historyPreviewEntry()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-auto">
+    <div class="p-4 border-b border-gray-200 bg-indigo-600 rounded-t-xl flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-white">Vista previa - {{ historyPreviewEntry()!.date }}</h3>
+      <div class="flex items-center gap-2">
+        <button (click)="downloadHistoryPDF()"
+          class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors" title="Descargar PDF">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </button>
+        <button (click)="closeHistoryPreview()"
+          class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="p-4">
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div class="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
+          <h4 class="font-semibold text-gray-900">{{ authService.selectedBranch()?.name }}</h4>
+          <span class="text-sm text-gray-500">{{ historyPreviewEntry()!.scheduleDate }}</span>
+        </div>
+        <div class="overflow-x-auto">
+          <div class="min-w-full">
+            <div class="flex bg-gray-100 border-b border-gray-200">
+              <div class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0">Área</div>
+              @for (hour of workHours; track hour) {
+              <div class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100">
+                {{ formatHour(hour) }}
+              </div>
+              }
+            </div>
+            @for (areaSchedule of getPreviewAreaSchedules(historyPreviewEntry()!); track areaSchedule.area) {
+            <div class="border-b border-gray-200">
+              <div class="flex">
+                <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                    <span class="font-medium text-gray-900 text-sm">{{ areaLabels[areaSchedule.area] }}</span>
+                  </div>
+                </div>
+                <div class="flex-1 relative">
+                  <div class="flex border-l border-gray-100">
+                    @for (hour of workHours; track hour) {
+                    <div class="flex-1 h-8 border-r border-gray-100"></div>
+                    }
+                  </div>
+                  @for (track of areaSchedule.tracks; track $index) {
+                  <div class="relative h-10 border-t border-gray-100">
+                    @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
+                    <div
+                      class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{ getBarColor(schedule.function) }} shadow-sm"
+                      [ngStyle]="getBarStyle(schedule.shift)">
+                      <div class="flex items-center gap-1 overflow-hidden">
+                        <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name }}</span>
+                      </div>
+                    </div>
+                    }
+                  </div>
+                  }
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-4">
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
 @if (showModal() && modalEmployee()) {
-  <app-employee-modal
-    [employee]="modalEmployee()!"
-    [areaName]="areaLabels[modalArea()!]"
-    [dropHour]="modalDropHour()"
-    [editingFunction]="modalEditingFunction()"
-    [editingShifts]="modalEditingShifts()"
-    (save)="onModalSave($event)"
-    (cancel)="closeModal()"
-  />
+<app-employee-modal [employee]="modalEmployee()!" [areaName]="areaLabels[modalArea()!]" [dropHour]="modalDropHour()"
+  [editingFunction]="modalEditingFunction()" [editingShifts]="modalEditingShifts()" (save)="onModalSave($event)"
+  (cancel)="closeModal()" />
+}
+
+@if (showEmployeeModal()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingEmployee() ? 'Editar Empleado' : 'Nuevo Empleado' }}
+    </h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+        <input type="text" [(ngModel)]="employeeForm.name"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Funciones</label>
+        <div class="flex flex-wrap gap-2">
+          @for (func of availableFunctions; track func) {
+          <label class="inline-flex items-center">
+            <input type="checkbox" [checked]="employeeForm.functions.includes(func)"
+              (change)="toggleEmployeeFunction(func)"
+              class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <span class="ml-2 text-sm text-gray-700">{{ functionLabels[func] }}</span>
+          </label>
+          }
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Función Principal</label>
+        <select [(ngModel)]="employeeForm.defaultFunction"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          @for (func of employeeForm.functions; track func) {
+          <option [value]="func">{{ functionLabels[func] }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Número de Vendedor</label>
+        <input type="number" [(ngModel)]="employeeForm.nroVendedor"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="Opcional">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Día de Franco</label>
+        <select [(ngModel)]="employeeForm.dayOff"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          @for (day of allDays; track day) {
+          <option [value]="day">{{ dayLabels[day] }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+        <div class="space-y-2">
+          @for (shift of employeeForm.shifts; track $index; let i = $index) {
+          <div class="flex items-center gap-2">
+            <input type="number" [(ngModel)]="shift.start" min="7" max="23"
+              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              placeholder="Desde">
+            <span class="text-gray-500">a</span>
+            <input type="number" [(ngModel)]="shift.end" min="7" max="23"
+              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              placeholder="Hasta">
+            @if (employeeForm.shifts.length > 1) {
+            <button (click)="removeShift(i)" class="text-red-500 hover:text-red-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            }
+          </div>
+          }
+          <button (click)="addShift()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar
+            turno</button>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button (click)="closeEmployeeModal()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="submitEmployeeForm()"
+        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">{{ editingEmployee()
+        ? 'Guardar' : 'Crear' }}</button>
+    </div>
+  </div>
+</div>
+}
+
+@if (showDeleteConfirm()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar Eliminación</h3>
+    <p class="text-gray-600 mb-6">¿Estás seguro de que querés eliminar a <strong>{{ employeeToDelete()?.name
+        }}</strong>?</p>
+    <div class="flex justify-end gap-3">
+      <button (click)="cancelDelete()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="confirmDelete()"
+        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors">Eliminar</button>
+    </div>
+  </div>
+</div>
+}
+
+@if (showVacationModal()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingVacation() ? 'Editar Vacación' : 'Nueva Vacación' }}
+    </h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Empleado</label>
+        @if (editingVacation()) {
+        <input type="text" [value]="editingVacation()!.employeeName" disabled
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
+        } @else {
+        <select [(ngModel)]="vacationForm.employeeId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Seleccionar empleado...</option>
+          @for (emp of allEmployees; track emp.id) {
+          <option [value]="emp.id">{{ emp.name }}</option>
+          }
+        </select>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+        <input type="date" [(ngModel)]="vacationForm.startDate"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
+        <input type="date" [(ngModel)]="vacationForm.endDate"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button (click)="closeVacationModal()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="submitVacationForm()"
+        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">
+        {{ editingVacation() ? 'Guardar' : 'Crear' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+@if (showStatusModal()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  @if (statusAction() === 'cambio_sucursal') {
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Cambio de Sucursal - {{ statusEmployee()?.name }}</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal de Destino</label>
+        <select [(ngModel)]="newBranchId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Seleccionar sucursal...</option>
+          @for (branch of authService.managerBranches(); track branch.id) {
+          @if (branch.id !== authService.selectedBranch()?.id) {
+          <option [value]="branch.id">{{ branch.name }}</option>
+          }
+          }
+        </select>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button (click)="closeStatusModal()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="confirmStatusChange()"
+        class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors">Confirmar
+        Cambio</button>
+    </div>
+  </div>
+  } @else {
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar {{ statusAction() === 'renuncia' ? 'Renuncia' :
+      'Despido' }}</h3>
+    <p class="text-gray-600 mb-6">¿Estás seguro de que querés registrar la {{ statusAction() }} de <strong>{{
+        statusEmployee()?.name }}</strong>? El empleado será dado de baja.</p>
+    <div class="flex justify-end gap-3">
+      <button (click)="closeStatusModal()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="confirmStatusChange()"
+        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors">Confirmar</button>
+    </div>
+  </div>
+  }
+</div>
 }
