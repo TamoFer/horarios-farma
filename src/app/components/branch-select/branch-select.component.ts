@@ -1,7 +1,8 @@
-import { Component, effect } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService, Branch } from '../../services/auth.service';
+import { DynamicToastService } from 'ngx-dynamic-toast';
 
 @Component({
   selector: 'app-branch-select',
@@ -64,7 +65,9 @@ import { AuthService, Branch } from '../../services/auth.service';
     </div>
   `
 })
-export class BranchSelectComponent {
+export class BranchSelectComponent implements OnInit {
+  private toastService = inject(DynamicToastService);
+
   constructor(
     public authService: AuthService,
     private router: Router
@@ -76,8 +79,16 @@ export class BranchSelectComponent {
     });
   }
 
+  ngOnInit(): void {
+    const managerName = this.authService.manager()?.name;
+    if (managerName) {
+      this.toastService.success('Bienvenido', { description: `Hola ${managerName}. Seleccioná la sucursal.` });
+    }
+  }
+
   selectBranch(branch: Branch): void {
     this.authService.selectBranch(branch);
+    this.toastService.success('Sesión iniciada', { description: `Conectado en ${branch.name}.` });
     this.router.navigate(['/dashboard']);
   }
 

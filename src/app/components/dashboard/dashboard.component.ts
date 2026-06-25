@@ -84,6 +84,7 @@ export class DashboardComponent {
 
   placedEmployees = signal<PlacedEmployee[]>([]);
   areaSchedules = signal<AreaSchedule[]>([]);
+  scheduleSaved = signal(true);
 
   showModal = signal(false);
   modalEmployee = signal<Employee | null>(null);
@@ -116,6 +117,8 @@ export class DashboardComponent {
   statusAction = signal<'renuncia' | 'despedido' | 'cambio_sucursal' | null>(null);
   newBranchId: number | null = null;
 
+  showSignOutConfirm = signal(false);
+
   showVacationModal = signal(false);
   vacationForm = {
     employeeId: '',
@@ -137,9 +140,12 @@ export class DashboardComponent {
   employeeSortApplied = signal(false);
 
   vacationSearchText = signal('');
+  historySearchText = signal('');
+  historySearchDate = signal('');
 
   scheduleDate = signal(new Date().toISOString().split('T')[0]);
-  minScheduleDate = new Date().toISOString().split('T')[0];
+  minScheduleDate = signal(new Date().toISOString().split('T')[0]);
+  lastSavedScheduleDate = signal<string | null>(null);
   showDatePicker = signal(false);
 
   filteredEmployees = computed(() => {
@@ -214,6 +220,33 @@ export class DashboardComponent {
     this.vacationSearchText.set('');
   }
 
+  filteredHistory = computed(() => {
+    let result = [...this.history()];
+
+    const searchText = this.historySearchText().toLowerCase().trim();
+    const searchDate = this.historySearchDate();
+
+    if (searchText) {
+      result = result.filter(entry =>
+        entry.date.toLowerCase().includes(searchText) ||
+        entry.scheduleDate.includes(searchText) ||
+        entry.branchId.toLowerCase().includes(searchText) ||
+        entry.placedEmployees.some(p => p.employeeName.toLowerCase().includes(searchText))
+      );
+    }
+
+    if (searchDate) {
+      result = result.filter(entry => entry.scheduleDate === searchDate);
+    }
+
+    return result;
+  });
+
+  clearHistorySearch(): void {
+    this.historySearchText.set('');
+    this.historySearchDate.set('');
+  }
+
   sortEmployees(field: 'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'): void {
     if (this.employeeSortField() === field) {
       if (this.employeeSortDirection() === 'asc') {
@@ -232,8 +265,21 @@ export class DashboardComponent {
 
   constructor() {
     this.initEmptySchedule();
+    this.loadMinScheduleDate();
     this.loadVacations();
     this.loadScheduleFromHistory();
+  }
+
+  private async loadMinScheduleDate(): Promise<void> {
+    await this.historyService.loadFromDatabase();
+    const history = this.historyService.history();
+    if (history.length > 0) {
+      const maxDate = history[0].scheduleDate;
+      this.lastSavedScheduleDate.set(maxDate);
+      const nextDay = new Date(maxDate + 'T00:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
+    }
   }
 
   private loadScheduleFromHistory(): void {
@@ -313,8 +359,18 @@ export class DashboardComponent {
     this.router.navigate(['/branch-select']);
   }
 
-  async signOut(): Promise<void> {
+  openSignOutDialog(): void {
+    this.showSignOutConfirm.set(true);
+  }
+
+  cancelSignOut(): void {
+    this.showSignOutConfirm.set(false);
+  }
+
+  async confirmSignOut(): Promise<void> {
+    this.showSignOutConfirm.set(false);
     await this.authService.signOut();
+    this.toastService.success('Sesión cerrada', { description: 'Hasta luego. La sesión se cerró correctamente.' });
     this.router.navigate(['/login']);
   }
 
@@ -717,6 +773,16 @@ export class DashboardComponent {
     this.showHistoryDeleteConfirm.set(false);
   }
 
+  async finalizeHistoryEntry(entry: ScheduleHistory): Promise<void> {
+    const success = await this.historyService.finalizeEntry(entry.id);
+    if (success) {
+      this.toastService.success('Horario finalizado', { description: 'El horario ha sido marcado como finalizado' });
+      await this.historyService.loadFromDatabase();
+    } else {
+      this.toastService.error('Error', { description: 'No se pudo finalizar el horario' });
+    }
+  }
+
   async deleteHistoryEntry(): Promise<void> {
     const entry = this.historyToDelete();
     if (!entry) return;
@@ -894,8 +960,38 @@ export class DashboardComponent {
     return this.scheduleDate() === new Date().toISOString().split('T')[0];
   }
 
+  isDateInHistory(date: string): boolean {
+    return this.historyService.history().some(h => h.scheduleDate === date);
+  }
+
+  private isDateInPast(date: string): boolean {
+    const today = new Date().toISOString().split('T')[0];
+    return date < today;
+  }
+
   goToToday(): void {
-    this.scheduleDate.set(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    if (this.isDateInPast(today)) {
+      this.toastService.error('Fecha no disponible', { description: 'No podés editar horarios de días que ya pasaron.' });
+      return;
+    }
+    this.scheduleDate.set(today);
+  }
+
+  goToPreviousDay(): void {
+    const current = new Date(this.scheduleDate() + 'T00:00:00');
+    current.setDate(current.getDate() - 1);
+    const prevDate = current.toISOString().split('T')[0];
+
+    if (this.isDateInPast(prevDate)) {
+      this.toastService.error('Fecha no disponible', { description: 'No podés editar horarios de días que ya pasaron.' });
+      return;
+    }
+
+    this.placedEmployees.set([]);
+    this.scheduleSaved.set(true);
+    this.scheduleDate.set(prevDate);
+    this.initEmptySchedule();
   }
 
   toggleDatePicker(): void {
@@ -960,6 +1056,7 @@ export class DashboardComponent {
 
   clearGrid(): void {
     this.placedEmployees.set([]);
+    this.scheduleSaved.set(false);
     this.initEmptySchedule();
   }
 
@@ -1024,6 +1121,7 @@ export class DashboardComponent {
       this.placedEmployees.update((list) => [...list, newPlaced]);
     }
 
+    this.scheduleSaved.set(false);
     this.rebuildSchedules();
     this.closeModal();
   }
@@ -1140,6 +1238,7 @@ export class DashboardComponent {
 
   removePlacedEmployee(placedId: number): void {
     this.placedEmployees.update((list) => list.filter((p) => p.id !== placedId));
+    this.scheduleSaved.set(false);
     this.rebuildSchedules();
   }
 
@@ -1199,7 +1298,7 @@ export class DashboardComponent {
   }
 
   goToNextDay(): void {
-    if (this.hasPlacedEmployees()) {
+    if (this.hasPlacedEmployees() && !this.scheduleSaved()) {
       this.toastService.warning('Cambios sin guardar', {
         description: 'Tienes empleados en la grilla sin guardar. ¿Querés descartar los cambios y avanzar?',
         button: {
@@ -1214,6 +1313,7 @@ export class DashboardComponent {
 
   confirmNextDay(): void {
     this.clearGrid();
+    this.scheduleSaved.set(false);
     this.advanceToNextDay();
   }
 
@@ -1221,12 +1321,15 @@ export class DashboardComponent {
     const current = new Date(this.scheduleDate() + 'T00:00:00');
     current.setDate(current.getDate() + 1);
     this.scheduleDate.set(current.toISOString().split('T')[0]);
+    this.placedEmployees.set([]);
+    this.scheduleSaved.set(true);
+    this.initEmptySchedule();
   }
 
   openDatePicker(): void {
     const input = document.querySelector('input[type="date"]') as HTMLInputElement;
     if (input) {
-      input.min = this.minScheduleDate;
+      input.min = new Date().toISOString().split('T')[0];
       input.showPicker();
     }
   }
@@ -1235,18 +1338,19 @@ export class DashboardComponent {
     const input = event.target as HTMLInputElement;
     const selectedDate = input.value;
 
-    if (selectedDate < this.minScheduleDate) {
-      this.toastService.error('Fecha inválida', { description: 'No podés seleccionar una fecha anterior a hoy' });
+    if (this.isDateInPast(selectedDate)) {
+      this.toastService.error('Fecha no disponible', { description: 'No podés seleccionar días que ya pasaron.' });
       return;
     }
 
-    if (this.hasPlacedEmployees()) {
+    if (this.hasPlacedEmployees() && !this.scheduleSaved()) {
       this.toastService.warning('Cambios sin guardar', {
-        description: '¿Querésiscardar los cambios y cambiar de fecha?',
+        description: '¿Querés descartar los cambios y cambiar de fecha?',
         button: {
           title: 'Descartar y cambiar',
           onClick: () => {
             this.clearGrid();
+            this.scheduleSaved.set(false);
             this.scheduleDate.set(selectedDate);
           }
         }
@@ -1317,12 +1421,13 @@ export class DashboardComponent {
     });
 
     this.placedEmployees.update((list) => [...list, ...newPlaced]);
+    this.scheduleSaved.set(false);
     this.rebuildSchedules();
   }
 
   async saveScheduleToHistory(): Promise<void> {
     const currentDate = this.getCurrentDateFormatted();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const scheduleDateStr = this.scheduleDate();
     const branch = this.authService.selectedBranch();
     if (!branch) return;
 
@@ -1338,7 +1443,7 @@ export class DashboardComponent {
       .from('historial_horarios')
       .select('id')
       .eq('branch_id', branch.id.toString())
-      .eq('schedule_date', todayStr)
+      .eq('schedule_date', scheduleDateStr)
       .single();
 
     if (selectError && selectError.code !== 'PGRST116') {
@@ -1360,6 +1465,13 @@ export class DashboardComponent {
         console.error('Error updating schedule:', updateError);
         this.toastService.error('Error', { description: 'No se pudo actualizar el horario' });
       } else {
+        this.scheduleSaved.set(true);
+        if (!this.lastSavedScheduleDate() || scheduleDateStr > this.lastSavedScheduleDate()!) {
+          this.lastSavedScheduleDate.set(scheduleDateStr);
+          const nextDay = new Date(scheduleDateStr + 'T00:00:00');
+          nextDay.setDate(nextDay.getDate() + 1);
+          this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
+        }
         this.toastService.success('Horario actualizado', { description: 'El horario se guardó correctamente' });
         await this.historyService.loadFromDatabase();
       }
@@ -1368,7 +1480,7 @@ export class DashboardComponent {
         .from('historial_horarios')
         .insert({
           branch_id: branch.id.toString(),
-          schedule_date: todayStr,
+          schedule_date: scheduleDateStr,
           placed_employees: JSON.stringify(placedData)
         });
 
@@ -1376,6 +1488,13 @@ export class DashboardComponent {
         console.error('Error inserting schedule:', insertError);
         this.toastService.error('Error', { description: 'No se pudo guardar el horario' });
       } else {
+        this.scheduleSaved.set(true);
+        if (!this.lastSavedScheduleDate() || scheduleDateStr > this.lastSavedScheduleDate()!) {
+          this.lastSavedScheduleDate.set(scheduleDateStr);
+          const nextDay = new Date(scheduleDateStr + 'T00:00:00');
+          nextDay.setDate(nextDay.getDate() + 1);
+          this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
+        }
         this.toastService.success('Horario guardado', { description: 'El horario se guardó correctamente' });
         await this.historyService.loadFromDatabase();
       }
