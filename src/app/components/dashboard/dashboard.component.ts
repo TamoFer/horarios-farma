@@ -272,14 +272,15 @@ export class DashboardComponent {
 
   private async loadMinScheduleDate(): Promise<void> {
     await this.historyService.loadFromDatabase();
-    const history = this.historyService.history();
-    if (history.length > 0) {
-      const maxDate = history[0].scheduleDate;
-      this.lastSavedScheduleDate.set(maxDate);
-      const nextDay = new Date(maxDate + 'T00:00:00');
-      nextDay.setDate(nextDay.getDate() + 1);
-      this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
-    }
+
+    await this.historyService.finalizeOldDrafts();
+
+    const today = new Date().toISOString().split('T')[0];
+    const nextAvailable = this.historyService.getNextAvailableDate(today);
+
+    this.minScheduleDate.set(nextAvailable);
+    this.scheduleDate.set(nextAvailable);
+    this.lastSavedScheduleDate.set(nextAvailable);
   }
 
   private loadScheduleFromHistory(): void {
@@ -829,11 +830,39 @@ export class DashboardComponent {
       pdf.text(branch.name, pageWidth / 2, margin + 10, { align: 'center' });
     }
 
+    const francolLabelWidth = 50;
+    const francolX = pageWidth - margin - francolLabelWidth;
+    const francolY = margin + 5;
+    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const date = new Date(entry.scheduleDate + 'T00:00:00');
+    const dayOfWeek = days[date.getDay()];
+
+    const employees = this.employees();
+    const francolEmployees = employees.filter(emp => emp.dayOff === dayOfWeek);
+
+    const hasFranco = francolEmployees.length > 0;
+    const francolHeight = hasFranco ? 8 + francolEmployees.length * 4 : 0;
+
     const areaLabelWidth = 40;
     const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
     const rowHeight = 10;
     const headerHeight = 12;
-    const startY = margin + 18;
+    const startY = hasFranco ? margin + 18 + francolHeight : margin + 18;
+
+    if (hasFranco) {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('FRANCO:', francolX, francolY);
+
+      let yOffset = francolY + 5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      francolEmployees.forEach(emp => {
+        pdf.text(emp.name, francolX, yOffset);
+        yOffset += 4;
+      });
+    }
 
     const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
@@ -867,7 +896,8 @@ export class DashboardComponent {
     let currentY = startY + headerHeight;
 
     areaSchedules.forEach((areaSchedule) => {
-      if (areaSchedule.tracks.length === 0) return;
+      const hasAnyEmployee = areaSchedule.tracks.some(track => track.length > 0);
+      if (!hasAnyEmployee) return;
 
       const maxTracks = areaSchedule.tracks.length;
       const areaRowHeight = rowHeight * maxTracks;
