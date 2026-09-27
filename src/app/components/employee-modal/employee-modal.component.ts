@@ -1,7 +1,7 @@
 import { Component, signal, output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Employee, JobFunction, ShiftBlock, FUNCTION_LABELS } from '../../models/employee.model';
+import { Employee, JobFunction, ShiftBlock, FUNCTION_LABELS, NIGHT_SHIFT_START, NIGHT_SHIFT_NORMAL_END, NIGHT_SHIFT_EXTENDED_END } from '../../models/employee.model';
 
 @Component({
   selector: 'app-employee-modal',
@@ -21,6 +21,9 @@ export class EmployeeModalComponent {
 
   selectedFunction: JobFunction = 'vendedor';
   shifts: ShiftBlock[] = [];
+  nightEnd: number = NIGHT_SHIFT_NORMAL_END;
+  nightEndNormal = NIGHT_SHIFT_NORMAL_END;
+  nightEndExtended = NIGHT_SHIFT_EXTENDED_END;
 
   ngOnInit(): void {
     const emp = this.employee();
@@ -34,6 +37,10 @@ export class EmployeeModalComponent {
       this.selectedFunction = emp.defaultFunction;
       this.shifts = emp.shifts.map(s => ({ start: s.start, end: s.end }));
     }
+
+    this.nightEnd = this.shifts.some(s => s.end >= NIGHT_SHIFT_EXTENDED_END)
+      ? NIGHT_SHIFT_EXTENDED_END
+      : NIGHT_SHIFT_NORMAL_END;
   }
 
   getFunctions(): JobFunction[] {
@@ -55,6 +62,13 @@ export class EmployeeModalComponent {
   }
 
   onSave(): void {
+    if (this.selectedFunction === 'nochero') {
+      this.save.emit({
+        function: 'nochero',
+        shifts: [{ start: NIGHT_SHIFT_START, end: this.nightEnd }],
+      });
+      return;
+    }
     this.save.emit({
       function: this.selectedFunction,
       shifts: [...this.shifts],

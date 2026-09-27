@@ -2,7 +2,7 @@ import { Injectable, signal, computed, Inject, PLATFORM_ID } from '@angular/core
 import { isPlatformBrowser } from '@angular/common';
 import { createClient, SupabaseClient, AuthSession } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { Employee } from '../models/employee.model';
+import { Employee, normalizeShiftBlocks } from '../models/employee.model';
 
 export interface Manager {
   id: number;
@@ -161,6 +161,7 @@ export class AuthService {
         shifts = emp.carga_horaria;
       }
     }
+    shifts = normalizeShiftBlocks(shifts);
 
     return {
       id: emp.id,

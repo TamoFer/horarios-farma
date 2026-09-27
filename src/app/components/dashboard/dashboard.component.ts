@@ -1,4 +1,4 @@
-import { Component, signal, output, ElementRef, ViewChild, inject, computed } from '@angular/core';
+import { Component, signal, output, ElementRef, ViewChild, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -18,9 +18,18 @@ import {
   FUNCTION_LABELS,
   DAY_LABELS,
   PlacedEmployeeData,
+  NIGHT_SHIFT_START,
+  NIGHT_SHIFT_NORMAL_END,
+  NIGHT_SHIFT_EXTENDED_END,
+  EmployeeException,
+  EmployeeExceptionDraft,
+  ExceptionType,
+  exceptionAppliesOn,
+  normalizeShiftBlocks,
 } from '../../models/employee.model';
 import { AuthService } from '../../services/auth.service';
 import { HistoryService } from '../../services/history.service';
+import { ExceptionService } from '../../services/exception.service';
 import { EmployeeModalComponent } from '../employee-modal/employee-modal.component';
 import { VacationModalComponent } from '../vacation-modal/vacation-modal.component';
 import { DynamicToastService } from 'ngx-dynamic-toast';
@@ -63,13 +72,21 @@ export class DashboardComponent {
   private router = inject(Router);
   authService = inject(AuthService);
   private historyService = inject(HistoryService);
+  exceptionService = inject(ExceptionService);
   private toastService = inject(DynamicToastService);
 
   employees = computed(() => {
     const branch = this.authService.selectedBranch();
     if (!branch) return [];
-    return this.authService.getEmployeesForBranch(branch.id);
+    return [...this.authService.getEmployeesForBranch(branch.id)].sort((a, b) =>
+      this.surnameOf(a.name).localeCompare(this.surnameOf(b.name), 'es')
+    );
   });
+
+  private surnameOf(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    return parts[parts.length - 1] ?? name;
+  }
 
   vacations = signal<Vacation[]>([]);
 
@@ -96,7 +113,7 @@ export class DashboardComponent {
 
   draggedEmployee = signal<Employee | null>(null);
   sidebarVisible = signal(true);
-  currentSection = signal<'horario' | 'empleados' | 'vacaciones' | 'historial'>('horario');
+  currentSection = signal<'horario' | 'empleados' | 'vacaciones' | 'historial' | 'cambios'>('horario');
 
   showEmployeeModal = signal(false);
   editingEmployee = signal<Employee | null>(null);
@@ -131,7 +148,25 @@ export class DashboardComponent {
   showHistoryDeleteConfirm = signal(false);
   historyToDelete = signal<ScheduleHistory | null>(null);
 
-  availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado'];
+  showNightShiftModal = signal(false);
+  nightShiftEmployee = signal<Employee | null>(null);
+
+  showExceptionModal = signal(false);
+  exceptionEditing = signal<EmployeeException | null>(null);
+  exceptionLockedEmployeeId = signal<number | null>(null);
+  exceptionForm = {
+    employeeId: null as number | null,
+    type: 'fija' as ExceptionType,
+    dayOfWeek: 'lunes' as DayOfWeek,
+    startDate: '',
+    endDate: '',
+    function: 'vendedor' as JobFunction,
+    coveredEmployeeId: null as number | null,
+    partIndex: 0,
+    shifts: [{ start: 9, end: 18 }] as ShiftBlock[]
+  };
+
+  availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado', 'nochero', 'seguridad'];
   allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
   employeeSearchText = signal('');
@@ -268,6 +303,14 @@ export class DashboardComponent {
     this.loadMinScheduleDate();
     this.loadVacations();
     this.loadScheduleFromHistory();
+    effect(() => {
+      const ids = this.employees().map((e) => e.id);
+      if (ids.length > 0) {
+        this.exceptionService.loadForEmployees(ids);
+      } else {
+        this.exceptionService.loadForEmployees([]);
+      }
+    });
   }
 
   private async loadMinScheduleDate(): Promise<void> {
@@ -374,7 +417,7 @@ export class DashboardComponent {
     this.router.navigate(['/login']);
   }
 
-  setSection(section: 'horario' | 'empleados' | 'vacaciones' | 'historial'): void {
+  setSection(section: 'horario' | 'empleados' | 'vacaciones' | 'historial' | 'cambios'): void {
     this.currentSection.set(section);
   }
 
@@ -499,13 +542,14 @@ export class DashboardComponent {
     const branch = this.authService.selectedBranch();
     if (!branch) return;
 
+    const shifts = normalizeShiftBlocks(this.employeeForm.shifts);
     const empData = {
       nombre: this.employeeForm.name,
       funciones: this.employeeForm.functions,
       puesto_contratado: this.employeeForm.defaultFunction,
-      jornada_semanal: this.employeeForm.shifts.reduce((sum, s) => sum + (s.end - s.start), 0),
+      jornada_semanal: shifts.reduce((sum, s) => sum + (s.end - s.start), 0),
       franco: this.employeeForm.dayOff,
-      carga_horaria: JSON.stringify(this.employeeForm.shifts),
+      carga_horaria: JSON.stringify(shifts),
       nro_vendedor: this.employeeForm.nroVendedor,
       trabajando: true
     };
@@ -535,6 +579,170 @@ export class DashboardComponent {
 
     await this.authService.refreshEmployeesForCurrentBranch();
     this.closeEmployeeModal();
+  }
+
+  getExceptionShiftsText(exc: EmployeeException): string {
+    const fmt = (h: number) => `${h >= 24 ? h - 24 : h}:00`;
+    return exc.shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
+  }
+
+  getFijas(): EmployeeException[] {
+    return this.exceptionService.exceptions().filter((e) => e.type === 'fija');
+  }
+
+  getEspontaneas(): EmployeeException[] {
+    return this.exceptionService.exceptions().filter((e) => e.type === 'espontanea');
+  }
+
+  getEmployeeExceptions(employeeId: number): EmployeeException[] {
+    return this.exceptionService.exceptions().filter((x) => x.employeeId === employeeId);
+  }
+
+  getExceptionEmployees(): Employee[] {
+    return this.allEmployees.filter((e) => !e.functions.includes('encargado'));
+  }
+
+  getExceptionFunctionOptions(): JobFunction[] {
+    const emp = this.allEmployees.find((e) => e.id === this.exceptionForm.employeeId);
+    return emp ? emp.functions : [];
+  }
+
+  openNewExceptionModal(type: ExceptionType, employee?: Employee): void {
+    this.exceptionEditing.set(null);
+    this.exceptionLockedEmployeeId.set(employee?.id ?? null);
+    this.exceptionForm = {
+      employeeId: employee?.id ?? null,
+      type,
+      dayOfWeek: 'lunes',
+      startDate: this.scheduleDate(),
+      endDate: this.scheduleDate(),
+      function: employee?.defaultFunction ?? 'vendedor',
+      coveredEmployeeId: null,
+      partIndex: 0,
+      shifts: employee ? employee.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
+    };
+    this.showExceptionModal.set(true);
+  }
+
+  openEditExceptionModal(exc: EmployeeException): void {
+    this.exceptionEditing.set(exc);
+    this.exceptionLockedEmployeeId.set(null);
+    this.exceptionForm = {
+      employeeId: exc.employeeId,
+      type: exc.type,
+      dayOfWeek: exc.dayOfWeek ?? 'lunes',
+      startDate: exc.startDate ?? this.scheduleDate(),
+      endDate: exc.endDate ?? this.scheduleDate(),
+      function: exc.function,
+      coveredEmployeeId: exc.coveredEmployeeId,
+      partIndex: 0,
+      shifts: exc.shifts.length > 0 ? exc.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
+    };
+    this.showExceptionModal.set(true);
+  }
+
+  getExceptionReferenceShifts(): ShiftBlock[] {
+    const refId = this.exceptionForm.coveredEmployeeId ?? this.exceptionForm.employeeId;
+    const ref = this.allEmployees.find((e) => e.id === refId);
+    return ref ? ref.shifts : [];
+  }
+
+  onExceptionPartChange(): void {
+    const refShifts = this.getExceptionReferenceShifts();
+    if (refShifts.length === 0) return;
+    this.exceptionForm.shifts =
+      this.exceptionForm.partIndex === 0
+        ? refShifts.map((s) => ({ ...s }))
+        : [{ ...refShifts[this.exceptionForm.partIndex - 1] }];
+  }
+
+  onExceptionEmployeeChange(): void {
+    const emp = this.allEmployees.find((e) => e.id === this.exceptionForm.employeeId);
+    if (!emp) return;
+    if (!emp.functions.includes(this.exceptionForm.function)) {
+      this.exceptionForm.function = emp.defaultFunction;
+    }
+    this.exceptionForm.partIndex = 0;
+    this.exceptionForm.shifts = emp.shifts.map((s) => ({ ...s }));
+  }
+
+  onExceptionCoveredChange(): void {
+    const covered = this.allEmployees.find((e) => e.id === this.exceptionForm.coveredEmployeeId);
+    if (!covered) return;
+    this.exceptionForm.function = covered.defaultFunction;
+    this.exceptionForm.partIndex = 0;
+    this.exceptionForm.shifts = covered.shifts.map((s) => ({ ...s }));
+  }
+
+  addExceptionShift(): void {
+    this.exceptionForm.shifts.push({ start: 9, end: 18 });
+  }
+
+  removeExceptionShift(index: number): void {
+    if (this.exceptionForm.shifts.length > 1) {
+      this.exceptionForm.shifts.splice(index, 1);
+    }
+  }
+
+  closeExceptionModal(): void {
+    this.showExceptionModal.set(false);
+    this.exceptionEditing.set(null);
+    this.exceptionLockedEmployeeId.set(null);
+  }
+
+  async submitExceptionForm(): Promise<void> {
+    const form = this.exceptionForm;
+    if (form.employeeId === null) {
+      this.toastService.error('Faltan datos', { description: 'Elegí el empleado que cubre' });
+      return;
+    }
+    const emp = this.allEmployees.find((e) => e.id === form.employeeId);
+    if (!emp || !emp.functions.includes(form.function)) {
+      this.toastService.error('Rol inválido', { description: 'El empleado no tiene esa función cargada' });
+      return;
+    }
+    if (form.type === 'espontanea' && (!form.startDate || !form.endDate || form.endDate < form.startDate)) {
+      this.toastService.error('Fechas inválidas', { description: 'Rango de fechas de la excepción incompleto' });
+      return;
+    }
+    const shifts = normalizeShiftBlocks(form.shifts);
+    if (shifts.length === 0) {
+      this.toastService.error('Horario inválido', { description: 'Agregá al menos un horario válido' });
+      return;
+    }
+
+    const draft: EmployeeExceptionDraft = {
+      type: form.type,
+      dayOfWeek: form.type === 'fija' ? form.dayOfWeek : null,
+      startDate: form.type === 'espontanea' ? form.startDate : null,
+      endDate: form.type === 'espontanea' ? form.endDate : null,
+      function: form.function,
+      shifts,
+      coveredEmployeeId: form.coveredEmployeeId
+    };
+
+    const editing = this.exceptionEditing();
+    const ok = editing
+      ? await this.exceptionService.update(editing.id, { ...draft, employeeId: form.employeeId })
+      : await this.exceptionService.create({ ...draft, employeeId: form.employeeId });
+
+    if (ok) {
+      this.toastService.success(editing ? 'Excepción actualizada' : 'Excepción creada', {
+        description: 'La excepción se guardó correctamente'
+      });
+      this.closeExceptionModal();
+    } else {
+      this.toastService.error('Error', { description: 'No se pudo guardar la excepción' });
+    }
+  }
+
+  async deleteException(id: number): Promise<void> {
+    const ok = await this.exceptionService.remove(id);
+    if (ok) {
+      this.toastService.success('Excepción eliminada', { description: 'La excepción se eliminó correctamente' });
+    } else {
+      this.toastService.error('Error', { description: 'No se pudo eliminar la excepción' });
+    }
   }
 
   openNewVacationModal(): void {
@@ -817,23 +1025,29 @@ export class DashboardComponent {
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 10;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 6;
     const title = `Horario - ${entry.date}`;
     const branch = this.authService.selectedBranch();
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(title, pageWidth / 2, margin + 5, { align: 'center' });
+    pdf.text(title, pageWidth / 2, margin + 4, { align: 'center' });
     if (branch) {
-      pdf.setFontSize(10);
-      pdf.text(branch.name, pageWidth / 2, margin + 10, { align: 'center' });
+      pdf.setFontSize(9);
+      pdf.text(branch.name, pageWidth / 2, margin + 8, { align: 'center' });
     }
 
-    const areaLabelWidth = 40;
+    const francos = this.getDayOffNamesForDate(
+      entry.scheduleDate,
+      entry.placedEmployees.map((p) => p.employeeId)
+    );
+
+    const areaLabelWidth = 35;
     const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
-    const rowHeight = 10;
-    const headerHeight = 12;
-    const startY = margin + 18;
+    const rowHeight = 6;
+    const headerHeight = 7;
+    const startY = margin + 11;
 
     const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
@@ -843,21 +1057,27 @@ export class DashboardComponent {
       inventario: [245, 158, 11],
       limpieza: [107, 114, 128],
       atencion_bot: [34, 211, 238],
-      encargado: [220, 38, 38]
+      encargado: [220, 38, 38],
+      nochero: [30, 41, 59],
+      seguridad: [20, 184, 166]
     };
 
+    const drawGridHeader = (): void => {
     pdf.setFillColor(243, 244, 246);
-    pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
+      pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
 
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(75, 85, 99);
-    pdf.text('Área', margin + 2, startY + 8);
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(75, 85, 99);
+      pdf.text('Área', margin + 2, startY + 5);
 
-    this.workHours.forEach((hour) => {
-      const x = margin + areaLabelWidth + (hour - 6) * hourWidth;
-      pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 8, { align: 'center' });
-    });
+      this.workHours.forEach((hour) => {
+        const x = margin + areaLabelWidth + (hour - 6) * hourWidth;
+        pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 5, { align: 'center' });
+      });
+    };
+
+    drawGridHeader();
 
     pdf.setDrawColor(229, 231, 235);
     pdf.setLineWidth(0.3);
@@ -872,13 +1092,19 @@ export class DashboardComponent {
       const maxTracks = areaSchedule.tracks.length;
       const areaRowHeight = rowHeight * maxTracks;
 
+      if (currentY + areaRowHeight > pageHeight - margin - 9) {
+        pdf.addPage();
+        currentY = startY;
+        drawGridHeader();
+      }
+
       pdf.setFillColor(249, 250, 251);
       pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight, 'F');
 
-      pdf.setFontSize(9);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(31, 41, 55);
-      pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 3);
+      pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 1);
 
       pdf.setDrawColor(229, 231, 235);
       pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight);
@@ -892,26 +1118,26 @@ export class DashboardComponent {
         const trackY = currentY + trackIndex * rowHeight;
 
         track.forEach((schedule) => {
+          const isNight = areaSchedule.area === 'noche';
           const shiftStart = schedule.shift.start;
           const shiftEnd = schedule.shift.end;
-          const leftX = margin + areaLabelWidth + ((shiftStart - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
-          const rightX = margin + areaLabelWidth + ((shiftEnd - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
-          const barWidth = rightX - leftX;
+          const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
+          const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
+          const rightX = margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
           const color = funcColors[schedule.function];
 
-          pdf.setFillColor(color[0], color[1], color[2]);
-          pdf.roundedRect(leftX, trackY + 1, barWidth, rowHeight - 2, 1, 1, 'F');
-
-          pdf.setFontSize(7);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(255, 255, 255);
-          const name = (schedule.employee as any).name?.length > 15 ? (schedule.employee as any).name.substring(0, 13) + '..' : (schedule.employee as any).name;
-          pdf.text(name, leftX + barWidth / 2, trackY + rowHeight / 2 + 1, { align: 'center' });
+          let name = ((schedule.employee as any).name || '').split(' ')[0];
+          if (isNight && shiftEnd > NIGHT_SHIFT_NORMAL_END) {
+            name = `${name} - hasta 12:00`;
+          }
+          this.drawShiftArrow(pdf, leftX, rightX, trackY, rowHeight, name, color, 6);
         });
       });
 
       currentY += areaRowHeight;
     });
+
+    this.drawFrancosLine(pdf, francos, margin, currentY + 7);
 
     const branchName = branch?.name || 'Sucursal';
     pdf.save(`horario_${branchName}_${entry.scheduleDate}.pdf`);
@@ -925,6 +1151,9 @@ export class DashboardComponent {
   }
 
   isEmployeeOnDayOff(employee: Employee): boolean {
+    const dateStr = this.scheduleDate();
+    if (this.isEmployeeWorkingViaException(employee.id, dateStr)) return false;
+    if (this.isEmployeeRestingViaException(employee.id, dateStr)) return true;
     return employee.dayOff === this.getCurrentDayOff();
   }
 
@@ -951,7 +1180,9 @@ export class DashboardComponent {
       inventario: '#f59e0b',
       limpieza: '#6b7280',
       atencion_bot: '#22d3ee',
-      encargado: '#dc2626'
+      encargado: '#dc2626',
+      nochero: '#1e293b',
+      seguridad: '#14b8a6'
     };
     return colors[fn] || '#9ca3af';
   }
@@ -1005,6 +1236,96 @@ export class DashboardComponent {
       const endStr = v.endDate.split('T')[0];
       return v.employeeId === employeeId && dateStr >= startStr && dateStr <= endStr;
     });
+  }
+
+  getActiveExceptionsFor(employeeId: number, dateStr: string): EmployeeException[] {
+    return this.exceptionService
+      .exceptions()
+      .filter((x) => x.employeeId === employeeId && exceptionAppliesOn(x, dateStr));
+  }
+
+  isEmployeeWorkingViaException(employeeId: number, dateStr: string): boolean {
+    return this.getActiveExceptionsFor(employeeId, dateStr).length > 0;
+  }
+
+  isEmployeeRestingViaException(employeeId: number, dateStr: string): boolean {
+    return this.exceptionService
+      .exceptions()
+      .some((x) => x.type === 'espontanea' && x.coveredEmployeeId === employeeId && exceptionAppliesOn(x, dateStr));
+  }
+
+  getExceptionBadge(employee: Employee): string | null {
+    const excs = this.getActiveExceptionsFor(employee.id, this.scheduleDate());
+    if (excs.length === 0) return null;
+    return excs
+      .map((exc) => {
+        const covered = exc.coveredEmployeeId ? this.allEmployees.find((e) => e.id === exc.coveredEmployeeId) : null;
+        const fn = this.functionLabels[exc.function];
+        return covered ? `${fn} · cubre a ${covered.name.split(' ')[0]}` : fn;
+      })
+      .join(' · ');
+  }
+
+  getEmployeeNameById(employeeId: number | null): string {
+    if (employeeId === null) return '-';
+    return this.allEmployees.find((e) => e.id === employeeId)?.name ?? 'Desconocido';
+  }
+
+  getDayOffNamesForDate(dateStr: string, placedEmployeeIds: number[]): string {
+    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const date = new Date(dateStr + 'T00:00:00');
+    const weekday = days[date.getDay()];
+    return this.allEmployees
+      .filter(
+        (e) =>
+          e.dayOff === weekday &&
+          !e.functions.includes('encargado') &&
+          !placedEmployeeIds.includes(e.id) &&
+          !this.vacations().some((v) => {
+            const startStr = v.startDate.split('T')[0];
+            const endStr = v.endDate.split('T')[0];
+            return v.employeeId === e.id && dateStr >= startStr && dateStr <= endStr;
+          })
+      )
+      .map((e) => e.name.split(' ')[0])
+      .join(', ');
+  }
+
+  private drawFrancosLine(pdf: jsPDF, francos: string, x: number, y: number): void {
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(55, 65, 81);
+    pdf.text('Francos:', x, y);
+    const labelWidth = pdf.getTextWidth('Francos:');
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(francos || '-', x + labelWidth + 1.5, y);
+  }
+
+  private drawShiftArrow(
+    pdf: jsPDF,
+    leftX: number,
+    rightX: number,
+    trackY: number,
+    rowHeight: number,
+    name: string,
+    color: [number, number, number],
+    fontSize: number
+  ): void {
+    const arrowY = trackY + rowHeight - 2.5;
+    const headLength = 1.3;
+    const headHalf = 0.8;
+
+    pdf.setDrawColor(color[0], color[1], color[2]);
+    pdf.setFillColor(color[0], color[1], color[2]);
+    pdf.setLineWidth(0.4);
+    pdf.line(leftX, arrowY, rightX, arrowY);
+    pdf.triangle(leftX, arrowY, leftX + headLength, arrowY - headHalf, leftX + headLength, arrowY + headHalf, 'F');
+    pdf.triangle(rightX, arrowY, rightX - headLength, arrowY - headHalf, rightX - headLength, arrowY + headHalf, 'F');
+
+    pdf.setFontSize(fontSize);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(name, (leftX + rightX) / 2, arrowY - 1.2, { align: 'center' });
   }
 
   getAvailableEmployees(): Employee[] {
@@ -1079,6 +1400,11 @@ export class DashboardComponent {
 
     try {
       const employee = JSON.parse(employeeJson) as Employee;
+      if (area === 'noche' && employee.functions.includes('nochero')) {
+        this.nightShiftEmployee.set(employee);
+        this.showNightShiftModal.set(true);
+        return;
+      }
       this.modalEmployee.set(employee);
       this.modalArea.set(area);
       this.modalDropHour.set(hour);
@@ -1088,6 +1414,38 @@ export class DashboardComponent {
     }
   }
 
+  placeNightEmployee(extended: boolean): void {
+    const employee = this.nightShiftEmployee();
+    if (!employee) return;
+
+    const newPlaced: PlacedEmployee = {
+      id: Date.now(),
+      employee,
+      area: 'noche',
+      function: 'nochero',
+      shifts: [
+        {
+          start: NIGHT_SHIFT_START,
+          end: extended ? NIGHT_SHIFT_EXTENDED_END : NIGHT_SHIFT_NORMAL_END,
+        },
+      ],
+    };
+
+    this.placedEmployees.update((list) => [...list, newPlaced]);
+    this.scheduleSaved.set(false);
+    this.rebuildSchedules();
+    this.closeNightShiftModal();
+  }
+
+  closeNightShiftModal(): void {
+    this.showNightShiftModal.set(false);
+    this.nightShiftEmployee.set(null);
+  }
+
+  isNightShiftExtended(shift: ShiftBlock): boolean {
+    return shift.end > NIGHT_SHIFT_NORMAL_END;
+  }
+
   onEmployeeDragStart(event: DragEvent, employee: Employee): void {
     event.dataTransfer?.setData('text/plain', JSON.stringify(employee));
     event.dataTransfer!.effectAllowed = 'move';
@@ -1095,12 +1453,14 @@ export class DashboardComponent {
 
   onModalSave(data: { function: JobFunction; shifts: ShiftBlock[] }): void {
     const editingId = this.modalEditingId();
+    const shifts = normalizeShiftBlocks(data.shifts);
+    if (shifts.length === 0) return;
 
     if (editingId !== null) {
       this.placedEmployees.update((list) =>
         list.map((p) =>
           p.id === editingId
-            ? { ...p, function: data.function, shifts: data.shifts, area: FUNCTION_TO_AREA[data.function] }
+            ? { ...p, function: data.function, shifts, area: FUNCTION_TO_AREA[data.function] }
             : p
         )
       );
@@ -1115,7 +1475,7 @@ export class DashboardComponent {
         employee,
         area,
         function: data.function,
-        shifts: data.shifts,
+        shifts,
       };
 
       this.placedEmployees.update((list) => [...list, newPlaced]);
@@ -1243,6 +1603,9 @@ export class DashboardComponent {
   }
 
   getBarStyle(shift: ShiftBlock): Record<string, string> {
+    if (shift.end > 24) {
+      return { left: '0%', width: '100%' };
+    }
     const leftPercent = ((shift.start - 6) / 18) * 100;
     const widthPercent = ((shift.end - shift.start) / 18) * 100;
 
@@ -1261,7 +1624,9 @@ export class DashboardComponent {
       inventario: 'bg-amber-500',
       limpieza: 'bg-gray-500',
       atencion_bot: 'bg-cyan-500',
-      encargado: 'bg-red-600'
+      encargado: 'bg-red-600',
+      nochero: 'bg-slate-800',
+      seguridad: 'bg-teal-500'
     };
     return colors[func];
   }
@@ -1369,7 +1734,9 @@ export class DashboardComponent {
       inventario: 'bg-yellow-100 text-yellow-800',
       limpieza: 'bg-gray-100 text-gray-800',
       atencion_bot: 'bg-cyan-100 text-cyan-800',
-      encargado: 'bg-red-100 text-red-800'
+      encargado: 'bg-red-100 text-red-800',
+      nochero: 'bg-slate-100 text-slate-800',
+      seguridad: 'bg-teal-100 text-teal-800'
     };
     return colors[func];
   }
@@ -1379,7 +1746,8 @@ export class DashboardComponent {
   }
 
   getEmployeeShifts(employee: Employee): string {
-    return employee.shifts.map((s) => `${s.start}:00-${s.end}:00`).join(' / ');
+    const fmt = (h: number) => `${h >= 24 ? h - 24 : h}:00`;
+    return employee.shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
   }
 
   getEmployeeNroVendedor(employee: Employee): string {
@@ -1405,24 +1773,86 @@ export class DashboardComponent {
   autoAssignEmployees(): void {
     const available = this.getAvailableEmployees();
     const newPlaced: PlacedEmployee[] = [];
+    const dateStr = this.scheduleDate();
 
     available.forEach((employee) => {
-      const defaultFunc = employee.defaultFunction;
-      const area = FUNCTION_TO_AREA[defaultFunc];
+      const exceptions = this.getActiveExceptionsFor(employee.id, dateStr);
 
-      const placedId = Date.now() + Math.random();
+      if (exceptions.length > 0) {
+        const excShifts = exceptions.flatMap((exc) => exc.shifts);
+
+        exceptions.forEach((exc, idx) => {
+          newPlaced.push({
+            id: Date.now() + idx + Math.random(),
+            employee,
+            area: FUNCTION_TO_AREA[exc.function],
+            function: exc.function,
+            shifts: exc.shifts.length > 0 ? exc.shifts : employee.shifts,
+          });
+        });
+
+        const overlapsOwnJornada = excShifts.some((used) =>
+          employee.shifts.some((own) => used.start < own.end && own.start < used.end)
+        );
+        if (overlapsOwnJornada) {
+          const remaining = this.subtractShiftBlocks(employee.shifts, excShifts);
+          if (remaining.length > 0) {
+            newPlaced.push({
+              id: Date.now() + 100 + Math.random(),
+              employee,
+              area: FUNCTION_TO_AREA[employee.defaultFunction],
+              function: employee.defaultFunction,
+              shifts: remaining,
+            });
+          }
+        }
+        return;
+      }
+
+      const effFunction = employee.defaultFunction;
+      const area = FUNCTION_TO_AREA[effFunction];
+      const shifts =
+        effFunction === 'nochero'
+          ? [{ start: NIGHT_SHIFT_START, end: NIGHT_SHIFT_NORMAL_END }]
+          : employee.shifts;
+
       newPlaced.push({
-        id: placedId,
+        id: Date.now() + Math.random(),
         employee,
         area,
-        function: defaultFunc,
-        shifts: employee.shifts,
+        function: effFunction,
+        shifts,
       });
     });
 
     this.placedEmployees.update((list) => [...list, ...newPlaced]);
     this.scheduleSaved.set(false);
     this.rebuildSchedules();
+  }
+
+  private subtractShiftBlocks(from: ShiftBlock[], covered: ShiftBlock[]): ShiftBlock[] {
+    const result: ShiftBlock[] = [];
+    from.forEach((block) => {
+      let pieces: ShiftBlock[] = [{ start: block.start, end: block.end }];
+      covered.forEach((cover) => {
+        const next: ShiftBlock[] = [];
+        pieces.forEach((piece) => {
+          if (cover.start >= piece.end || cover.end <= piece.start) {
+            next.push(piece);
+          } else {
+            if (piece.start < cover.start) {
+              next.push({ start: piece.start, end: cover.start });
+            }
+            if (cover.end < piece.end) {
+              next.push({ start: cover.end, end: piece.end });
+            }
+          }
+        });
+        pieces = next;
+      });
+      result.push(...pieces.filter((p) => p.end > p.start));
+    });
+    return result;
   }
 
   async saveScheduleToHistory(): Promise<void> {
@@ -1521,18 +1951,23 @@ export class DashboardComponent {
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
+      const margin = 6;
       const title = `Horarios Farmacia - ${this.getCurrentDateFormatted()}`;
 
-      pdf.setFontSize(14);
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(title, pageWidth / 2, margin + 5, { align: 'center' });
+      pdf.text(title, pageWidth / 2, margin + 4, { align: 'center' });
+
+      const francos = this.getDayOffNamesForDate(
+        this.scheduleDate(),
+        this.placedEmployees().map((p) => p.employee.id)
+      );
 
       const areaLabelWidth = 35;
       const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
-      const rowHeight = 8;
-      const headerHeight = 10;
-      const startY = margin + 15;
+      const rowHeight = 6;
+      const headerHeight = 7;
+      const startY = margin + 9;
 
       const funcColors: Record<JobFunction, [number, number, number]> = {
         cajero: [59, 130, 246],
@@ -1542,21 +1977,27 @@ export class DashboardComponent {
         inventario: [245, 158, 11],
         limpieza: [107, 114, 128],
         atencion_bot: [34, 211, 238],
-        encargado: [220, 38, 38]
+        encargado: [220, 38, 38],
+        nochero: [30, 41, 59],
+        seguridad: [20, 184, 166]
       };
 
-      pdf.setFillColor(249, 250, 251);
-      pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
+      const drawGridHeader = (): void => {
+        pdf.setFillColor(249, 250, 251);
+        pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
 
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(75, 85, 99);
-      pdf.text('Área', margin + 2, startY + 7);
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(75, 85, 99);
+        pdf.text('Área', margin + 2, startY + 5);
 
-      this.workHours.forEach((hour, i) => {
-        const x = margin + areaLabelWidth + i * hourWidth;
-        pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 7, { align: 'center' });
-      });
+        this.workHours.forEach((hour, i) => {
+          const x = margin + areaLabelWidth + i * hourWidth;
+          pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 5, { align: 'center' });
+        });
+      };
+
+      drawGridHeader();
 
       pdf.setDrawColor(229, 231, 235);
       pdf.setLineWidth(0.3);
@@ -1567,13 +2008,19 @@ export class DashboardComponent {
         const maxTracks = areaSchedule.tracks.length;
         const areaRowHeight = maxTracks > 0 ? rowHeight * maxTracks : rowHeight;
 
+        if (currentY + areaRowHeight > pageHeight - margin - 9) {
+          pdf.addPage();
+          currentY = startY;
+          drawGridHeader();
+        }
+
         pdf.setFillColor(249, 250, 251);
         pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight, 'F');
 
-        pdf.setFontSize(8);
+        pdf.setFontSize(7);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(31, 41, 55);
-        pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 2);
+        pdf.text(this.areaLabels[areaSchedule.area], margin + 2, currentY + areaRowHeight / 2 + 1);
 
         pdf.setDrawColor(229, 231, 235);
         pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight);
@@ -1587,42 +2034,26 @@ export class DashboardComponent {
           const trackY = currentY + trackIndex * rowHeight;
 
           track.forEach((schedule) => {
+            const isNight = areaSchedule.area === 'noche';
             const shiftStart = schedule.shift.start;
             const shiftEnd = schedule.shift.end;
-            const leftX = margin + areaLabelWidth + ((shiftStart - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
-            const rightX = margin + areaLabelWidth + ((shiftEnd - 6) / 18) * (pageWidth - margin * 2 - areaLabelWidth);
-            const barWidth = rightX - leftX;
+            const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
+            const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
+            const rightX = margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
             const color = funcColors[schedule.function];
 
-            pdf.setFillColor(color[0], color[1], color[2]);
-            pdf.roundedRect(leftX, trackY + 1, barWidth, rowHeight - 2, 1, 1, 'F');
-
-            pdf.setFontSize(6);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(255, 255, 255);
-            const name = schedule.employee.name.length > 12 ? schedule.employee.name.substring(0, 10) + '..' : schedule.employee.name;
-            pdf.text(name, leftX + 2, trackY + 5.5);
+            let name = schedule.employee.name.split(' ')[0];
+            if (isNight && shiftEnd > NIGHT_SHIFT_NORMAL_END) {
+              name = `${name} - hasta 12:00`;
+            }
+            this.drawShiftArrow(pdf, leftX, rightX, trackY, rowHeight, name, color, 5.5);
           });
         });
 
         currentY += areaRowHeight;
       });
 
-      const legendY = currentY + 10;
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(75, 85, 99);
-      pdf.text('Leyenda:', margin, legendY);
-
-      const funcs = Object.keys(funcColors) as JobFunction[];
-      funcs.forEach((func, i) => {
-        const x = margin + 15 + i * 30;
-        const color = funcColors[func];
-        pdf.setFillColor(color[0], color[1], color[2]);
-        pdf.rect(x, legendY - 3, 4, 4, 'F');
-        pdf.setTextColor(75, 85, 99);
-        pdf.text(this.functionLabels[func], x + 6, legendY);
-      });
+      this.drawFrancosLine(pdf, francos, margin, currentY + 7);
 
       pdf.autoPrint();
       const blob = pdf.output('blob');

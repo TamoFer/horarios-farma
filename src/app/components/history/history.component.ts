@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import jsPDF from 'jspdf';
 import { HistoryService } from '../../services/history.service';
 import { AuthService } from '../../services/auth.service';
-import { ScheduleHistory, JobFunction, Area, WORK_HOURS, AREA_LABELS, FUNCTION_LABELS, PlacedEmployeeData } from '../../models/employee.model';
+import { ScheduleHistory, JobFunction, Area, DayOfWeek, WORK_HOURS, AREA_LABELS, PlacedEmployeeData, NIGHT_SHIFT_NORMAL_END } from '../../models/employee.model';
 import { Router } from '@angular/router';
 
 @Component({
@@ -109,7 +109,9 @@ export class HistoryComponent implements OnInit {
       inventario: 'bg-amber-500',
       limpieza: 'bg-gray-500',
       atencion_bot: 'bg-cyan-500',
-      encargado: 'bg-red-600'
+      encargado: 'bg-red-600',
+      nochero: 'bg-slate-800',
+      seguridad: 'bg-teal-500'
     };
     return colors[func];
   }
@@ -122,18 +124,29 @@ export class HistoryComponent implements OnInit {
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 10;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 6;
     const title = `Horarios Farmacia - ${entry.date}`;
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(title, pageWidth / 2, margin + 5, { align: 'center' });
+    pdf.text(title, pageWidth / 2, margin + 4, { align: 'center' });
+
+    const branchEmployees = this.authService.branchEmployees().get(Number(entry.branchId)) ?? [];
+    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const entryDate = new Date(entry.scheduleDate + 'T00:00:00');
+    const weekday = days[entryDate.getDay()];
+    const placedIds = entry.placedEmployees.map((p) => p.employeeId);
+    const francos = branchEmployees
+      .filter((e) => e.dayOff === weekday && !placedIds.includes(e.id) && !e.functions.includes('encargado'))
+      .map((e) => e.name.split(' ')[0])
+      .join(', ');
 
     const areaLabelWidth = 35;
     const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / WORK_HOURS.length;
-    const rowHeight = 8;
-    const headerHeight = 10;
-    const startY = margin + 15;
+    const rowHeight = 6;
+    const headerHeight = 7;
+    const startY = margin + 9;
 
       const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
@@ -143,13 +156,15 @@ export class HistoryComponent implements OnInit {
       inventario: [245, 158, 11],
       limpieza: [107, 114, 128],
       atencion_bot: [34, 211, 238],
-      encargado: [220, 38, 38]
+      encargado: [220, 38, 38],
+      nochero: [30, 41, 59],
+      seguridad: [20, 184, 166]
     };
 
-    const areas: Area[] = ['caja', 'mostrador', 'perfumeria', 'salon', 'inventario', 'limpieza', 'bot'];
+    const areas: Area[] = ['caja', 'mostrador', 'perfumeria', 'salon', 'inventario', 'limpieza', 'seguridad', 'bot', 'noche'];
 
     const areaTracks: Record<Area, { employee: string; function: JobFunction; shift: { start: number; end: number } }[][]> = {
-      caja: [], mostrador: [], perfumeria: [], salon: [], inventario: [], limpieza: [], bot: []
+      caja: [], mostrador: [], perfumeria: [], salon: [], inventario: [], limpieza: [], seguridad: [], bot: [], noche: []
     };
 
     entry.placedEmployees.forEach(p => {
@@ -174,18 +189,22 @@ export class HistoryComponent implements OnInit {
       });
     });
 
-    pdf.setFillColor(249, 250, 251);
-    pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
+    const drawGridHeader = (): void => {
+      pdf.setFillColor(249, 250, 251);
+      pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
 
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(75, 85, 99);
-    pdf.text('Área', margin + 2, startY + 7);
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(75, 85, 99);
+      pdf.text('Área', margin + 2, startY + 5);
 
-    WORK_HOURS.forEach((hour, i) => {
-      const x = margin + areaLabelWidth + i * hourWidth;
-      pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 7, { align: 'center' });
-    });
+      WORK_HOURS.forEach((hour, i) => {
+        const x = margin + areaLabelWidth + i * hourWidth;
+        pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 5, { align: 'center' });
+      });
+    };
+
+    drawGridHeader();
 
     pdf.setDrawColor(229, 231, 235);
     pdf.setLineWidth(0.3);
@@ -197,13 +216,19 @@ export class HistoryComponent implements OnInit {
       const maxTracks = tracks.length;
       const areaRowHeight = maxTracks > 0 ? rowHeight * maxTracks : rowHeight;
 
+      if (currentY + areaRowHeight > pageHeight - margin - 9) {
+        pdf.addPage();
+        currentY = startY;
+        drawGridHeader();
+      }
+
       pdf.setFillColor(249, 250, 251);
       pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight, 'F');
 
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(31, 41, 55);
-      pdf.text(AREA_LABELS[area], margin + 2, currentY + areaRowHeight / 2 + 2);
+      pdf.text(AREA_LABELS[area], margin + 2, currentY + areaRowHeight / 2 + 1);
 
       pdf.setDrawColor(229, 231, 235);
       pdf.rect(margin, currentY, areaLabelWidth, areaRowHeight);
@@ -217,43 +242,62 @@ export class HistoryComponent implements OnInit {
         const trackY = currentY + trackIndex * rowHeight;
 
         track.forEach(schedule => {
+          const isNight = area === 'noche';
           const shiftStart = schedule.shift.start;
           const shiftEnd = schedule.shift.end;
-          const leftX = margin + areaLabelWidth + ((shiftStart - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
-          const rightX = margin + areaLabelWidth + ((shiftEnd - 7) / 17) * (pageWidth - margin * 2 - areaLabelWidth);
-          const barWidth = rightX - leftX;
+          const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
+          const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 7) / 17) * gridWidth);
+          const rightX = isNight
+            ? margin + areaLabelWidth + gridWidth
+            : margin + areaLabelWidth + ((shiftEnd - 7) / 17) * gridWidth;
           const color = funcColors[schedule.function];
 
-          pdf.setFillColor(color[0], color[1], color[2]);
-          pdf.roundedRect(leftX, trackY + 1, barWidth, rowHeight - 2, 1, 1, 'F');
-
-          pdf.setFontSize(6);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(255, 255, 255);
-          const name = schedule.employee.length > 12 ? schedule.employee.substring(0, 10) + '..' : schedule.employee;
-          pdf.text(name, leftX + 2, trackY + 5.5);
+          let name = schedule.employee.split(' ')[0];
+          if (isNight && shiftEnd > NIGHT_SHIFT_NORMAL_END) {
+            name = `${name} - hasta 12:00`;
+          }
+          this.drawShiftArrow(pdf, leftX, rightX, trackY, rowHeight, name, color);
         });
       });
 
       currentY += areaRowHeight;
     });
 
-    const legendY = currentY + 10;
+    const legendY = currentY + 7;
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(75, 85, 99);
-    pdf.text('Leyenda:', margin, legendY);
-
-    const funcs = Object.keys(funcColors) as JobFunction[];
-    funcs.forEach((func, i) => {
-      const x = margin + 15 + i * 30;
-      const color = funcColors[func];
-      pdf.setFillColor(color[0], color[1], color[2]);
-      pdf.rect(x, legendY - 3, 4, 4, 'F');
-      pdf.setTextColor(75, 85, 99);
-      pdf.text(FUNCTION_LABELS[func], x + 6, legendY);
-    });
+    pdf.setTextColor(55, 65, 81);
+    pdf.text('Francos:', margin, legendY);
+    const francosLabelWidth = pdf.getTextWidth('Francos:');
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(francos || '-', margin + francosLabelWidth + 1.5, legendY);
 
     return pdf;
+  }
+
+  private drawShiftArrow(
+    pdf: jsPDF,
+    leftX: number,
+    rightX: number,
+    trackY: number,
+    rowHeight: number,
+    name: string,
+    color: [number, number, number]
+  ): void {
+    const arrowY = trackY + rowHeight - 2.5;
+    const headLength = 1.3;
+    const headHalf = 0.8;
+
+    pdf.setDrawColor(color[0], color[1], color[2]);
+    pdf.setFillColor(color[0], color[1], color[2]);
+    pdf.setLineWidth(0.4);
+    pdf.line(leftX, arrowY, rightX, arrowY);
+    pdf.triangle(leftX, arrowY, leftX + headLength, arrowY - headHalf, leftX + headLength, arrowY + headHalf, 'F');
+    pdf.triangle(rightX, arrowY, rightX - headLength, arrowY - headHalf, rightX - headLength, arrowY + headHalf, 'F');
+
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(name, (leftX + rightX) / 2, arrowY - 1.2, { align: 'center' });
   }
 }

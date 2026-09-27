@@ -63,6 +63,20 @@ CREATE TABLE history_vacations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Excepciones de empleados (cubrimientos fijos o espontáneos)
+CREATE TABLE excepciones (
+  id SERIAL PRIMARY KEY,
+  empleado_id INTEGER NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
+  tipo TEXT NOT NULL CHECK (tipo IN ('fija', 'espontanea')),
+  dia TEXT,
+  desde DATE,
+  hasta DATE,
+  funcion TEXT NOT NULL,
+  horario TEXT NOT NULL DEFAULT '[]',
+  cubre_a INTEGER REFERENCES empleados(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS)
 -- =====================================================
@@ -73,6 +87,7 @@ ALTER TABLE encargados_sucursales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE empleados ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vacaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history_vacations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE excepciones ENABLE ROW LEVEL SECURITY;
 
 -- Policies: Admin puede hacer todo
 CREATE POLICY "Admin can do anything on sucursales" ON sucursales
@@ -152,6 +167,31 @@ CREATE POLICY "Managers can view history_vacations" ON history_vacations
 CREATE POLICY "Managers can insert history_vacations" ON history_vacations
   FOR INSERT WITH CHECK (
     branch_id IN (SELECT branch_id FROM encargados_sucursales WHERE manager_id IN (SELECT id FROM roles_usuarios WHERE user_id = auth.uid())))
+;
+
+CREATE POLICY "Admin can do anything on excepciones" ON excepciones
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM roles_usuarios WHERE user_id = auth.uid() AND role = 'admin'))
+;
+
+CREATE POLICY "Managers can view excepciones" ON excepciones
+  FOR SELECT USING (
+    empleado_id IN (SELECT id FROM empleados WHERE branch_id IN (SELECT branch_id FROM encargados_sucursales WHERE manager_id IN (SELECT id FROM roles_usuarios WHERE user_id = auth.uid()))))
+;
+
+CREATE POLICY "Managers can insert excepciones" ON excepciones
+  FOR INSERT WITH CHECK (
+    empleado_id IN (SELECT id FROM empleados WHERE branch_id IN (SELECT branch_id FROM encargados_sucursales WHERE manager_id IN (SELECT id FROM roles_usuarios WHERE user_id = auth.uid()))))
+;
+
+CREATE POLICY "Managers can update excepciones" ON excepciones
+  FOR UPDATE USING (
+    empleado_id IN (SELECT id FROM empleados WHERE branch_id IN (SELECT branch_id FROM encargados_sucursales WHERE manager_id IN (SELECT id FROM roles_usuarios WHERE user_id = auth.uid()))))
+;
+
+CREATE POLICY "Managers can delete excepciones" ON excepciones
+  FOR DELETE USING (
+    empleado_id IN (SELECT id FROM empleados WHERE branch_id IN (SELECT branch_id FROM encargados_sucursales WHERE manager_id IN (SELECT id FROM roles_usuarios WHERE user_id = auth.uid()))))
 ;
 
 -- =====================================================

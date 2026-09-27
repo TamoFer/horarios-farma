@@ -21,108 +21,79 @@
         <span class="text-xs text-gray-400">Arrastrá a la grilla</span>
       </div>
       <div class="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
-        <div class="space-y-3">
+        <div class="space-y-1.5">
           @for (employee of getAvailableEmployees(); track employee.id) {
           <div
-            class="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
-            draggable="true" (dragstart)="onEmployeeDragStart($event, employee)" (dragend)="onDragEnded($event)">
-            <div class="flex items-start gap-3">
-              <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                <span class="text-indigo-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <p class="text-sm font-medium text-gray-900 truncate">{{ employee.name }}</p>
-                  @if (isSplitShift(employee)) {
-                  <span
-                    class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">Cortado</span>
-                  }
-                </div>
-                <div class="flex flex-wrap gap-1 mt-1">
-                  @for (func of getEmployeeFunctions(employee); track func) {
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(func) }}">
-                    {{ functionLabels[func] }}
-                  </span>
-                  }
-                </div>
-                <div class="mt-2 text-xs text-gray-500">
-                  <div class="flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{{ getEmployeeShifts(employee) }}</span>
-                  </div>
-                </div>
-              </div>
+            class="bg-white rounded-md border border-gray-200 px-2 py-1 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+            draggable="true" (dragstart)="onEmployeeDragStart($event, employee)" (dragend)="onDragEnded($event)"
+            title="{{ employee.name }} · {{ getEmployeeShifts(employee) }}">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <p class="text-xs font-medium text-gray-900 truncate">{{ employee.name }}</p>
+              <span class="flex gap-0.5 ml-auto flex-shrink-0">
+                @for (func of getEmployeeFunctions(employee); track func) {
+                <span class="px-1 rounded text-[10px] font-medium leading-4 {{ getFunctionBadgeColor(func) }}">{{
+                  functionLabels[func] }}</span>
+                }
+              </span>
             </div>
+            <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
+              <span class="truncate">{{ getEmployeeShifts(employee) }}</span>
+              @if (isSplitShift(employee)) {
+              <span
+                class="px-1 rounded bg-orange-100 text-orange-700 text-[10px] font-medium leading-4 flex-shrink-0">Cortado</span>
+              }
+            </div>
+            @if (getExceptionBadge(employee); as excBadge) {
+            <div class="mt-0.5 text-[10px] font-medium text-teal-700 bg-teal-50 rounded px-1 truncate">{{ excBadge }}
+            </div>
+            }
           </div>
           }
           @if (getEmployeesOnDayOff().length > 0) {
-          <div class="border-t border-gray-200 pt-3 mt-3">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Franco ({{
+          <div class="border-t border-gray-200 pt-2 mt-2">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Franco ({{
               getEmployeesOnDayOff().length }})</h3>
-            <div class="space-y-3">
+            <div class="space-y-1">
             @for (employee of getEmployeesOnDayOff(); track employee.id) {
-            <div class="bg-gray-100 rounded-lg border border-gray-200 p-3 opacity-60 cursor-not-allowed">
-              <div class="flex items-start gap-3">
-                <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                  <span class="text-gray-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-500 truncate">{{ employee.name }}</p>
-                  <div class="flex flex-wrap gap-1 mt-1">
-                    @for (func of getEmployeeFunctions(employee); track func) {
-                    <span
-                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-500">{{
-                      functionLabels[func] }}</span>
-                    }
-                  </div>
-                  <div class="mt-2 text-xs text-gray-400">
-                    <span>{{ dayLabels[employee.dayOff] }}</span>
-                  </div>
-                </div>
+            <div class="bg-gray-100 rounded-md border border-gray-200 px-2 py-1 opacity-60 cursor-not-allowed">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <p class="text-xs font-medium text-gray-500 truncate">{{ employee.name }}</p>
+                <span class="flex gap-0.5 ml-auto flex-shrink-0">
+                  @for (func of getEmployeeFunctions(employee); track func) {
+                  <span
+                    class="px-1 rounded text-[10px] font-medium leading-4 bg-gray-200 text-gray-500">{{
+                    functionLabels[func] }}</span>
+                  }
+                </span>
               </div>
+              <div class="mt-0.5 text-[11px] text-gray-400">{{ dayLabels[employee.dayOff] }}</div>
             </div>
             }
             </div>
           </div>
           }
           @if (getEmployeesOnVacation().length > 0) {
-          <div class="border-t border-gray-200 pt-3 mt-3">
-            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">Vacaciones ({{
+          <div class="border-t border-gray-200 pt-2 mt-2">
+            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Vacaciones ({{
               getEmployeesOnVacation().length }})</h3>
+            <div class="space-y-1">
             @for (employee of getEmployeesOnVacation(); track employee.id) {
-            <div class="bg-blue-50 rounded-lg border border-blue-200 p-3 opacity-75 cursor-not-allowed">
-              <div class="flex items-start gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
-                  <span class="text-blue-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-blue-700 truncate">{{ employee.name }}</p>
-                  <div class="mt-2 text-xs text-blue-500">{{ getVacationDates(employee.id) }}</div>
-                </div>
-              </div>
+            <div class="bg-blue-50 rounded-md border border-blue-200 px-2 py-1 opacity-75 cursor-not-allowed">
+              <p class="text-xs font-medium text-blue-700 truncate">{{ employee.name }}</p>
+              <div class="mt-0.5 text-[11px] text-blue-500">{{ getVacationDates(employee.id) }}</div>
             </div>
             }
+            </div>
           </div>
           }
           @if (getEncargados().length > 0) {
-          <div class="border-t border-gray-200 pt-3 mt-3">
-            <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Encargados ({{
+          <div class="border-t border-gray-200 pt-2 mt-2">
+            <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Encargados ({{
               getEncargados().length }})</h3>
-            <div class="space-y-3">
+            <div class="space-y-1">
             @for (employee of getEncargados(); track employee.id) {
-            <div class="bg-red-50 rounded-lg border border-red-200 p-3 opacity-75 cursor-not-allowed">
-              <div class="flex items-start gap-3">
-                <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
-                  <span class="text-red-600 font-semibold text-sm">{{ employee.name.charAt(0) }}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-red-700 truncate">{{ employee.name }}</p>
-                </div>
-              </div>
+            <div class="bg-red-50 rounded-md border border-red-200 px-2 py-1 opacity-75 cursor-not-allowed">
+              <p class="text-xs font-medium text-red-700 truncate">{{ employee.name }}</p>
             </div>
             }
             </div>
@@ -210,6 +181,8 @@
             class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'vacaciones' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Vacaciones</button>
           <button (click)="setSection('historial')"
             class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'historial' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Historial</button>
+          <button (click)="setSection('cambios')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'cambios' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Cambios</button>
         </div>
       </div>
 
@@ -264,6 +237,10 @@
                   </div>
                 </div>
                 <div class="flex-1 relative">
+                  @if (areaSchedule.area === 'noche') {
+                  <div class="h-8 border-l border-gray-100 drop-zone" [attr.data-area]="areaSchedule.area"
+                    (dragover)="onDragOver($event)" (drop)="onDropOnCell($event, areaSchedule.area, 22)"></div>
+                  } @else {
                   <div class="flex border-l border-gray-100">
                     @for (hour of workHours; track hour) {
                     <div class="flex-1 h-8 border-r border-gray-100 drop-zone" [attr.data-area]="areaSchedule.area"
@@ -271,6 +248,7 @@
                       (drop)="onDropOnCell($event, areaSchedule.area, hour)"></div>
                     }
                   </div>
+                  }
                   @for (track of areaSchedule.tracks; track $index) {
                   <div class="relative h-10 border-t border-gray-100">
                     @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
@@ -280,6 +258,11 @@
                       <div class="flex items-center gap-1 overflow-hidden">
                         <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name
                           }}</span>
+                        @if (isNightShiftExtended(schedule.shift)) {
+                        <span
+                          class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap">hasta
+                          12:00</span>
+                        }
                         <svg class="w-3 h-3 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fill-rule="evenodd"
                             d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
@@ -319,7 +302,11 @@
         <div class="flex items-center gap-2 text-sm text-gray-600"><span
             class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
         <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
             class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span
+            class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span></div>
         <div class="flex items-center gap-2 text-sm text-gray-600 ml-4"><span
             class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">Cortado</span><span>Horario
             dividido</span></div>
@@ -702,6 +689,136 @@
         }
       </div>
       }
+
+      @if (currentSection() === 'cambios') {
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-lg font-semibold text-gray-900">Excepciones fijas</h3>
+          <button (click)="openNewExceptionModal('fija')"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
+            excepción fija</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">El empleado cumple otro rol un día fijo de la semana (ej: cubre los
+          francos de otro empleado ese día).</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Día</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cubre a</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (exc of getFijas(); track exc.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ getEmployeeNameById(exc.employeeId) }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[exc.dayOfWeek!] }}</td>
+                <td class="px-4 py-2">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(exc.function) }}">{{
+                    functionLabels[exc.function] }}</span>
+                </td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.coveredEmployeeId !== null ?
+                  getEmployeeNameById(exc.coveredEmployeeId) : '-' }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getExceptionShiftsText(exc) }}</td>
+                <td class="px-4 py-2 text-sm">
+                  <div class="flex items-center gap-1">
+                    <button (click)="openEditExceptionModal(exc)"
+                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button (click)="deleteException(exc.id)"
+                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              @if (getFijas().length === 0) {
+              <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500">No hay excepciones fijas</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-lg font-semibold text-gray-900">Excepciones espontáneas</h3>
+          <button (click)="openNewExceptionModal('espontanea')"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
+            excepción espontánea</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Canjes puntuales por fecha: el empleado cubre y quien cubre descansa esos
+          días (ej: canje de franco entre dos empleados).</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hasta</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descansa</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (exc of getEspontaneas(); track exc.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ getEmployeeNameById(exc.employeeId) }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.startDate }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.endDate }}</td>
+                <td class="px-4 py-2">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(exc.function) }}">{{
+                    functionLabels[exc.function] }}</span>
+                </td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.coveredEmployeeId !== null ?
+                  getEmployeeNameById(exc.coveredEmployeeId) : '-' }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getExceptionShiftsText(exc) }}</td>
+                <td class="px-4 py-2 text-sm">
+                  <div class="flex items-center gap-1">
+                    <button (click)="openEditExceptionModal(exc)"
+                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button (click)="deleteException(exc.id)"
+                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              @if (getEspontaneas().length === 0) {
+              <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-gray-500">No hay excepciones espontáneas</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
     </div>
   </main>
 </div>
@@ -791,6 +908,10 @@
                       [ngStyle]="getBarStyle(schedule.shift)">
                       <div class="flex items-center gap-1 overflow-hidden">
                         <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name }}</span>
+                        @if (isNightShiftExtended(schedule.shift)) {
+                        <span
+                          class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap">hasta 12:00</span>
+                        }
                       </div>
                     </div>
                     }
@@ -810,7 +931,9 @@
         <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span></div>
         <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span></div>
         <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span></div>
         <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
+        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span></div>
       </div>
     </div>
   </div>
@@ -821,6 +944,31 @@
 <app-employee-modal [employee]="modalEmployee()!" [areaName]="areaLabels[modalArea()!]" [dropHour]="modalDropHour()"
   [editingFunction]="modalEditingFunction()" [editingShifts]="modalEditingShifts()" (save)="onModalSave($event)"
   (cancel)="closeModal()" />
+}
+
+@if (showNightShiftModal() && nightShiftEmployee()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+    <h3 class="text-lg font-semibold text-gray-900 mb-1">Asignar nochero</h3>
+    <p class="text-sm text-gray-500 mb-4">{{ nightShiftEmployee()!.name }} - turno de 22:00 a:</p>
+    <div class="space-y-2">
+      <button (click)="placeNightEmployee(false)"
+        class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
+        <span class="block font-medium text-gray-900 text-sm">7:00 (horario normal)</span>
+        <span class="block text-xs text-gray-500 mt-0.5">Sale a las 7:00 del día siguiente</span>
+      </button>
+      <button (click)="placeNightEmployee(true)"
+        class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
+        <span class="block font-medium text-gray-900 text-sm">12:00 del día siguiente</span>
+        <span class="block text-xs text-gray-500 mt-0.5">Se queda hasta el mediodía</span>
+      </button>
+    </div>
+    <button (click)="closeNightShiftModal()"
+      class="mt-4 w-full px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium">
+      Cancelar
+    </button>
+  </div>
+</div>
 }
 
 @if (showEmployeeModal()) {
@@ -896,6 +1044,40 @@
             turno</button>
         </div>
       </div>
+      @if (editingEmployee()) {
+      <div class="border-t border-gray-200 pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-sm font-medium text-gray-700">Excepciones</label>
+          <button (click)="openNewExceptionModal('fija', editingEmployee()!)"
+            class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar</button>
+        </div>
+        @if (getEmployeeExceptions(editingEmployee()!.id).length === 0) {
+        <p class="text-xs text-gray-400">Sin excepciones. Cubre otro rol un día de la semana (fija) o en fechas
+          puntuales (espontánea).</p>
+        } @else {
+        <div class="space-y-1">
+          @for (exc of getEmployeeExceptions(editingEmployee()!.id); track exc.id) {
+          <div class="flex items-center gap-2 text-xs bg-gray-50 rounded px-2 py-1.5">
+            <span class="px-1.5 rounded font-medium flex-shrink-0 {{ getFunctionBadgeColor(exc.function) }}">{{
+              functionLabels[exc.function] }}</span>
+            <span class="text-gray-600 flex-shrink-0">
+              @if (exc.type === 'fija') { {{ dayLabels[exc.dayOfWeek!] }} } @else { {{ exc.startDate }} → {{
+              exc.endDate }} }
+            </span>
+            @if (exc.coveredEmployeeId !== null) {
+            <span class="text-gray-500 truncate">cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }}</span>
+            }
+            <button (click)="deleteException(exc.id)" class="ml-auto text-red-500 hover:text-red-700 flex-shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
     </div>
     <div class="flex justify-end gap-3 mt-6">
       <button (click)="closeEmployeeModal()"
@@ -963,6 +1145,136 @@
         class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">
         {{ editingVacation() ? 'Guardar' : 'Crear' }}
       </button>
+    </div>
+  </div>
+</div>
+}
+
+@if (showExceptionModal()) {
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ exceptionEditing() ? 'Editar Excepción' : 'Nueva Excepción'
+      }}</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Empleado (quien cubre)</label>
+        @if (exceptionLockedEmployeeId() !== null) {
+        <input type="text" [value]="getEmployeeNameById(exceptionForm.employeeId)" disabled
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
+        } @else {
+        <select [ngModel]="exceptionForm.employeeId"
+          (ngModelChange)="exceptionForm.employeeId = $event; onExceptionEmployeeChange()"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option [ngValue]="null">Seleccionar empleado...</option>
+          @for (emp of getExceptionEmployees(); track emp.id) {
+          <option [ngValue]="emp.id">{{ emp.name }}</option>
+          }
+        </select>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <select [(ngModel)]="exceptionForm.type"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="fija">Fija (día de la semana)</option>
+          <option value="espontanea">Espontánea (rango de fechas)</option>
+        </select>
+      </div>
+      @if (exceptionForm.type === 'fija') {
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Día de la semana</label>
+        <select [(ngModel)]="exceptionForm.dayOfWeek"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          @for (day of allDays; track day) {
+          <option [value]="day">{{ dayLabels[day] }}</option>
+          }
+        </select>
+      </div>
+      } @else {
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+          <input type="date" [(ngModel)]="exceptionForm.startDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+          <input type="date" [(ngModel)]="exceptionForm.endDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+      </div>
+      }
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Rol que cumple</label>
+        <select [(ngModel)]="exceptionForm.function"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          @for (func of getExceptionFunctionOptions(); track func) {
+          <option [value]="func">{{ functionLabels[func] }}</option>
+          }
+        </select>
+        @if (getExceptionFunctionOptions().length === 0) {
+        <p class="text-xs text-gray-400 mt-1">Elegí primero el empleado.</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ exceptionForm.type === 'espontanea' ? 'Cubre a
+          (descansa en esas fechas)' : 'Cubre a (opcional, hereda su horario)' }}</label>
+        <select [ngModel]="exceptionForm.coveredEmployeeId"
+          (ngModelChange)="exceptionForm.coveredEmployeeId = $event; onExceptionCoveredChange()"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option [ngValue]="null">Nadie</option>
+          @for (emp of getExceptionEmployees(); track emp.id) {
+          @if (emp.id !== exceptionForm.employeeId) {
+          <option [ngValue]="emp.id">{{ emp.name }}</option>
+          }
+          }
+        </select>
+      </div>
+      @if (getExceptionReferenceShifts().length > 1) {
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Parte de la jornada</label>
+        <select [ngModel]="exceptionForm.partIndex"
+          (ngModelChange)="exceptionForm.partIndex = $event; onExceptionPartChange()"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option [ngValue]="0">Toda la jornada</option>
+          @for (shift of getExceptionReferenceShifts(); track $index; let i = $index) {
+          <option [ngValue]="i + 1">Turno {{ i + 1 }} ({{ shift.start }}:00 a {{ shift.end }}:00)</option>
+          }
+        </select>
+      </div>
+      }
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-sm font-medium text-gray-700">Horario que cumple</label>
+          <button (click)="addExceptionShift()"
+            class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar turno</button>
+        </div>
+        <div class="space-y-2">
+          @for (shift of exceptionForm.shifts; track $index; let i = $index) {
+          <div class="flex items-center gap-2">
+            <input type="number" [(ngModel)]="shift.start" min="6" max="23"
+              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            <span class="text-gray-500">a</span>
+            <input type="number" [(ngModel)]="shift.end" min="7" max="36"
+              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            @if (exceptionForm.shifts.length > 1) {
+            <button (click)="removeExceptionShift(i)" class="text-red-500 hover:text-red-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            }
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button (click)="closeExceptionModal()"
+        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+      <button (click)="submitExceptionForm()"
+        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">{{ exceptionEditing()
+        ? 'Guardar' : 'Crear' }}</button>
     </div>
   </div>
 </div>

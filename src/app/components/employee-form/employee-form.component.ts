@@ -22,7 +22,7 @@ export class EmployeeFormComponent {
   dayOff = signal<DayOfWeek>('domingo');
   shifts = signal<ShiftBlock[]>([{ start: 9, end: 17 }]);
 
-  allFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza'];
+  allFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'nochero'];
   functionLabels = FUNCTION_LABELS;
   dayLabels = DAY_LABELS;
   daysOfWeek = DAYS_OF_WEEK;
