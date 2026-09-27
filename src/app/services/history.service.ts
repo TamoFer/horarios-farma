@@ -140,4 +140,34 @@ export class HistoryService {
   clearHistory(): void {
     this.history.set([]);
   }
+
+  async finalizeOldDrafts(): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    const draftsToFinalize = this.history().filter(h => !h.isFinal && h.scheduleDate < today);
+
+    for (const draft of draftsToFinalize) {
+      await this.finalizeEntry(draft.id);
+    }
+  }
+
+  hasScheduleForDate(date: string): boolean {
+    return this.history().some(h => h.scheduleDate === date);
+  }
+
+  getNextAvailableDate(fromDate: string): string {
+    const history = this.history();
+    let checkDate = new Date(fromDate + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    while (checkDate < today) {
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+
+    while (history.some(h => h.scheduleDate === checkDate.toISOString().split('T')[0])) {
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+
+    return checkDate.toISOString().split('T')[0];
+  }
 }
