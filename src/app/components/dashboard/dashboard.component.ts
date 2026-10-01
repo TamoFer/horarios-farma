@@ -1039,6 +1039,18 @@ export class DashboardComponent {
       pdf.text(branch.name, pageWidth / 2, margin + 8, { align: 'center' });
     }
 
+<<<<<<< HEAD
+    const francos = this.getDayOffNamesForDate(
+      entry.scheduleDate,
+      entry.placedEmployees.map((p) => p.employeeId)
+    );
+
+    const areaLabelWidth = 35;
+    const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
+    const rowHeight = 6;
+    const headerHeight = 7;
+    const startY = margin + 11;
+=======
     const francolLabelWidth = 50;
     const francolX = pageWidth - margin - francolLabelWidth;
     const francolY = margin + 5;
