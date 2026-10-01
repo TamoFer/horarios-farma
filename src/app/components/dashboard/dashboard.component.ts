@@ -1039,18 +1039,11 @@ export class DashboardComponent {
       pdf.text(branch.name, pageWidth / 2, margin + 8, { align: 'center' });
     }
 
-<<<<<<< HEAD
     const francos = this.getDayOffNamesForDate(
       entry.scheduleDate,
       entry.placedEmployees.map((p) => p.employeeId)
     );
 
-    const areaLabelWidth = 35;
-    const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
-    const rowHeight = 6;
-    const headerHeight = 7;
-    const startY = margin + 11;
-=======
     const francolLabelWidth = 50;
     const francolX = pageWidth - margin - francolLabelWidth;
     const francolY = margin + 5;
@@ -1084,7 +1077,6 @@ export class DashboardComponent {
         yOffset += 4;
       });
     }
->>>>>>> 655770a47162668c3152050be30e95e9ac5314a2
 
     const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
