@@ -1039,18 +1039,6 @@ export class DashboardComponent {
       pdf.text(branch.name, pageWidth / 2, margin + 8, { align: 'center' });
     }
 
-<<<<<<< HEAD
-    const francos = this.getDayOffNamesForDate(
-      entry.scheduleDate,
-      entry.placedEmployees.map((p) => p.employeeId)
-    );
-
-    const areaLabelWidth = 35;
-    const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
-    const rowHeight = 6;
-    const headerHeight = 7;
-    const startY = margin + 11;
-=======
     const francolLabelWidth = 50;
     const francolX = pageWidth - margin - francolLabelWidth;
     const francolY = margin + 5;
@@ -1084,7 +1072,6 @@ export class DashboardComponent {
         yOffset += 4;
       });
     }
->>>>>>> 655770a47162668c3152050be30e95e9ac5314a2
 
     const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
@@ -1174,8 +1161,6 @@ export class DashboardComponent {
 
       currentY += areaRowHeight;
     });
-
-    this.drawFrancosLine(pdf, francos, margin, currentY + 7);
 
     const branchName = branch?.name || 'Sucursal';
     pdf.save(`horario_${branchName}_${entry.scheduleDate}.pdf`);
@@ -1829,10 +1814,11 @@ export class DashboardComponent {
           });
         });
 
+        const isSplitJornada = employee.shifts.length > 1;
         const overlapsOwnJornada = excShifts.some((used) =>
           employee.shifts.some((own) => used.start < own.end && own.start < used.end)
         );
-        if (overlapsOwnJornada) {
+        if (isSplitJornada && overlapsOwnJornada) {
           const remaining = this.subtractShiftBlocks(employee.shifts, excShifts);
           if (remaining.length > 0) {
             newPlaced.push({
