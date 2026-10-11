@@ -63,11 +63,11 @@ CREATE TABLE history_vacations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Excepciones de empleados (cubrimientos fijos o espontáneos)
+-- Excepciones de empleados (cubrimientos fijos o espontáneos, cambios de franco)
 CREATE TABLE excepciones (
   id SERIAL PRIMARY KEY,
   empleado_id INTEGER NOT NULL REFERENCES empleados(id) ON DELETE CASCADE,
-  tipo TEXT NOT NULL CHECK (tipo IN ('fija', 'espontanea')),
+  tipo TEXT NOT NULL CHECK (tipo IN ('fija', 'espontanea', 'franco')),
   dia TEXT,
   desde DATE,
   hasta DATE,

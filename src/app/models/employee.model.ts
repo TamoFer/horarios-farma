@@ -123,7 +123,7 @@ export const DAY_LABELS: Record<DayOfWeek, string> = {
   domingo: 'Domingo',
 };
 
-export type ExceptionType = 'fija' | 'espontanea';
+export type ExceptionType = 'fija' | 'espontanea' | 'franco';
 
 export interface EmployeeException {
   id: number;
@@ -143,6 +143,14 @@ export function exceptionAppliesOn(
   exception: Pick<EmployeeException, 'type' | 'dayOfWeek' | 'startDate' | 'endDate'>,
   dateStr: string
 ): boolean {
+  if (exception.type === 'franco') {
+    // Cambio de franco con vigencia por rango de fechas. Sin fechas (registros viejos
+    // creados antes de la vigencia) se considera permanente.
+    const start = (exception.startDate || '').split('T')[0];
+    const end = (exception.endDate || '').split('T')[0];
+    if (!start && !end) return true;
+    return !!start && !!end && dateStr >= start && dateStr <= end;
+  }
   if (exception.type === 'fija') {
     const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
     const date = new Date(dateStr + 'T00:00:00');

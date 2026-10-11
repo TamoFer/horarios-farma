@@ -13,6 +13,7 @@ import {
   ScheduleHistory,
   WORK_HOURS,
   AREAS,
+  AREA_TO_FUNCTION,
   FUNCTION_TO_AREA,
   AREA_LABELS,
   FUNCTION_LABELS,
@@ -110,6 +111,7 @@ export class DashboardComponent {
   modalEditingId = signal<number | null>(null);
   modalEditingFunction = signal<JobFunction | null>(null);
   modalEditingShifts = signal<ShiftBlock[] | null>(null);
+  modalSuggestedFunction = signal<JobFunction | null>(null);
 
   draggedEmployee = signal<Employee | null>(null);
   sidebarVisible = signal(true);
@@ -163,6 +165,9 @@ export class DashboardComponent {
     function: 'vendedor' as JobFunction,
     coveredEmployeeId: null as number | null,
     partIndex: 0,
+    francoAdvanced: false,
+    francoMode: 'rango' as 'rango' | 'semanas',
+    francoWeeks: 1,
     shifts: [{ start: 9, end: 18 }] as ShiftBlock[]
   };
 
@@ -583,8 +588,12 @@ export class DashboardComponent {
   }
 
   getExceptionShiftsText(exc: EmployeeException): string {
+    return this.formatShiftsText(exc.shifts);
+  }
+
+  formatShiftsText(shifts: ShiftBlock[]): string {
     const fmt = (h: number) => `${h >= 24 ? h - 24 : h}:00`;
-    return exc.shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
+    return shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
   }
 
   getFijas(): EmployeeException[] {
@@ -611,15 +620,19 @@ export class DashboardComponent {
   openNewExceptionModal(type: ExceptionType, employee?: Employee): void {
     this.exceptionEditing.set(null);
     this.exceptionLockedEmployeeId.set(employee?.id ?? null);
+    const [weekStart, weekEnd] = this.getScheduleWeekRange();
     this.exceptionForm = {
       employeeId: employee?.id ?? null,
       type,
       dayOfWeek: 'lunes',
-      startDate: this.scheduleDate(),
-      endDate: this.scheduleDate(),
+      startDate: type === 'franco' ? weekStart : this.scheduleDate(),
+      endDate: type === 'franco' ? weekEnd : this.scheduleDate(),
       function: employee?.defaultFunction ?? 'vendedor',
       coveredEmployeeId: null,
       partIndex: 0,
+      francoAdvanced: false,
+      francoMode: 'rango',
+      francoWeeks: 1,
       shifts: employee ? employee.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
     };
     this.showExceptionModal.set(true);
@@ -637,6 +650,9 @@ export class DashboardComponent {
       function: exc.function,
       coveredEmployeeId: exc.coveredEmployeeId,
       partIndex: 0,
+      francoAdvanced: exc.type === 'franco' && !!exc.startDate && !!exc.endDate,
+      francoMode: 'rango',
+      francoWeeks: 1,
       shifts: exc.shifts.length > 0 ? exc.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
     };
     this.showExceptionModal.set(true);
@@ -691,6 +707,15 @@ export class DashboardComponent {
     this.exceptionLockedEmployeeId.set(null);
   }
 
+  private exceptionErrorDetail(): string {
+    const err = this.exceptionService.lastError();
+    if (!err) return '';
+    if (/check constraint|invalid input value/i.test(err)) {
+      return ': la base de datos todavía no acepta el tipo "franco". Ejecutá supabase/migrations/20261011_excepciones_tipo_franco.sql en el SQL Editor de Supabase.';
+    }
+    return `: ${err}`;
+  }
+
   async submitExceptionForm(): Promise<void> {
     const form = this.exceptionForm;
     if (form.employeeId === null) {
@@ -698,7 +723,85 @@ export class DashboardComponent {
       return;
     }
     const emp = this.allEmployees.find((e) => e.id === form.employeeId);
-    if (!emp || !emp.functions.includes(form.function)) {
+    if (!emp) {
+      this.toastService.error('Faltan datos', { description: 'Elegí el empleado que cubre' });
+      return;
+    }
+    const editing = this.exceptionEditing();
+
+    if (form.type === 'franco') {
+      // Vigencia del cambio: por defecto 1 semana (la del día que se está viendo);
+      // avanzado: rango de fechas o N semanas a partir de esa misma semana.
+      let start: string;
+      let end: string;
+
+      if (!form.francoAdvanced) {
+        [start, end] = this.getScheduleWeekRange();
+      } else if (form.francoMode === 'rango') {
+        start = (form.startDate || '').split('T')[0];
+        end = (form.endDate || '').split('T')[0];
+        if (!start || !end || end < start) {
+          this.toastService.error('Fechas inválidas', {
+            description: 'El rango de fechas del cambio de franco está incompleto'
+          });
+          return;
+        }
+      } else {
+        const weeks = Math.floor(Number(form.francoWeeks));
+        if (!Number.isFinite(weeks) || weeks < 1 || weeks > 52) {
+          this.toastService.error('Semanas inválidas', {
+            description: 'La cantidad de semanas tiene que estar entre 1 y 52'
+          });
+          return;
+        }
+        [start, end] = this.getScheduleWeekRange(weeks);
+      }
+
+      const overlapping = this.exceptionService
+        .exceptions()
+        .find(
+          (x) =>
+            x.type === 'franco' &&
+            x.employeeId === emp.id &&
+            x.id !== editing?.id &&
+            this.francoRangesOverlap(x, start, end)
+        );
+      if (overlapping) {
+        this.toastService.error('Cambio de franco superpuesto', {
+          description: `${emp.name.split(' ')[0]} ya tiene un cambio de franco vigente en esas fechas (${this.getFrancoVigencia(overlapping)}). Editá o eliminá ese cambio.`
+        });
+        return;
+      }
+      if (form.dayOfWeek === emp.dayOff) {
+        this.toastService.error('Sin cambio', { description: 'Ese ya es su día de franco' });
+        return;
+      }
+      const francoDraft: EmployeeExceptionDraft = {
+        type: 'franco',
+        dayOfWeek: form.dayOfWeek,
+        startDate: start,
+        endDate: end,
+        function: emp.defaultFunction,
+        shifts: [],
+        coveredEmployeeId: null,
+      };
+      const francoOk = editing
+        ? await this.exceptionService.update(editing.id, { ...francoDraft, employeeId: emp.id })
+        : await this.exceptionService.create({ ...francoDraft, employeeId: emp.id });
+      if (francoOk) {
+        this.toastService.success(editing ? 'Cambio de franco actualizado' : 'Cambio de franco creado', {
+          description: `Su nuevo franco es el ${this.dayLabels[form.dayOfWeek]} del ${this.formatShortDate(start)} al ${this.formatShortDate(end)}; el ${this.dayLabels[emp.dayOff]} trabaja su horario habitual`
+        });
+        this.closeExceptionModal();
+      } else {
+        this.toastService.error('Error', {
+          description: `No se pudo guardar el cambio de franco${this.exceptionErrorDetail()}`
+        });
+      }
+      return;
+    }
+
+    if (!emp.functions.includes(form.function)) {
       this.toastService.error('Rol inválido', { description: 'El empleado no tiene esa función cargada' });
       return;
     }
@@ -722,7 +825,6 @@ export class DashboardComponent {
       coveredEmployeeId: form.coveredEmployeeId
     };
 
-    const editing = this.exceptionEditing();
     const ok = editing
       ? await this.exceptionService.update(editing.id, { ...draft, employeeId: form.employeeId })
       : await this.exceptionService.create({ ...draft, employeeId: form.employeeId });
@@ -733,7 +835,9 @@ export class DashboardComponent {
       });
       this.closeExceptionModal();
     } else {
-      this.toastService.error('Error', { description: 'No se pudo guardar la excepción' });
+      this.toastService.error('Error', {
+        description: `No se pudo guardar la excepción${this.exceptionErrorDetail()}`
+      });
     }
   }
 
@@ -742,7 +846,9 @@ export class DashboardComponent {
     if (ok) {
       this.toastService.success('Excepción eliminada', { description: 'La excepción se eliminó correctamente' });
     } else {
-      this.toastService.error('Error', { description: 'No se pudo eliminar la excepción' });
+      this.toastService.error('Error', {
+        description: `No se pudo eliminar la excepción${this.exceptionErrorDetail()}`
+      });
     }
   }
 
@@ -1184,7 +1290,8 @@ export class DashboardComponent {
     const dateStr = this.scheduleDate();
     if (this.isEmployeeWorkingViaException(employee.id, dateStr)) return false;
     if (this.isEmployeeRestingViaException(employee.id, dateStr)) return true;
-    return employee.dayOff === this.getCurrentDayOff();
+    // Con un cambio de franco vigente, el día de descanso efectivo es el nuevo día.
+    return this.getEffectiveDayOff(employee, dateStr) === this.getCurrentDayOff();
   }
 
   getPreviewEntriesForArea(entry: ScheduleHistory, area: Area): PlacedEmployeeData[] {
@@ -1269,9 +1376,87 @@ export class DashboardComponent {
   }
 
   getActiveExceptionsFor(employeeId: number, dateStr: string): EmployeeException[] {
+    // Los cambios de franco no son coberturas: no reemplazan la jornada ni el rol, solo
+    // mueven el día de descanso (se resuelven en getEffectiveDayOff / isEmployeeOnDayOff).
     return this.exceptionService
       .exceptions()
-      .filter((x) => x.employeeId === employeeId && exceptionAppliesOn(x, dateStr));
+      .filter((x) => x.type !== 'franco' && x.employeeId === employeeId && exceptionAppliesOn(x, dateStr));
+  }
+
+  getFrancos(): EmployeeException[] {
+    return this.exceptionService.exceptions().filter((e) => e.type === 'franco');
+  }
+
+  /** Cambio de franco vigente para el empleado en la fecha indicada. */
+  getFrancoChangeFor(employeeId: number, dateStr: string): EmployeeException | null {
+    return (
+      this.exceptionService
+        .exceptions()
+        .find((e) => e.type === 'franco' && e.employeeId === employeeId && exceptionAppliesOn(e, dateStr)) ?? null
+    );
+  }
+
+  getEffectiveDayOff(employee: Employee, dateStr: string): DayOfWeek {
+    const change = this.getFrancoChangeFor(employee.id, dateStr);
+    return change?.dayOfWeek ?? employee.dayOff;
+  }
+
+  getFrancoDayLabel(employee: Employee): string {
+    const effective = this.getEffectiveDayOff(employee, this.scheduleDate());
+    if (effective === employee.dayOff) return this.dayLabels[effective];
+    return `${this.dayLabels[effective]} (antes ${this.dayLabels[employee.dayOff]})`;
+  }
+
+  getFrancoOriginalDay(exc: EmployeeException): string {
+    const emp = this.allEmployees.find((e) => e.id === exc.employeeId);
+    return emp ? this.dayLabels[emp.dayOff] : '-';
+  }
+
+  /** Vigencia del cambio de franco para listados ("12/10 al 18/10" o "Permanente"). */
+  getFrancoVigencia(exc: EmployeeException): string {
+    if (!exc.startDate || !exc.endDate) return 'Permanente';
+    return `${this.formatShortDate(exc.startDate)} al ${this.formatShortDate(exc.endDate)}`;
+  }
+
+  /** Rango por defecto (1 semana): lunes a domingo de la semana del día que se está viendo. */
+  getDefaultFrancoRangeLabel(): string {
+    const [start, end] = this.getScheduleWeekRange();
+    return `${this.formatShortDate(start)} al ${this.formatShortDate(end)}`;
+  }
+
+  /** Rango resultante al elegir "X semanas" en el formulario (para el hint del modal). */
+  getFrancoWeeksRangeLabel(): string {
+    const weeks = Math.max(1, Math.min(52, Math.floor(Number(this.exceptionForm.francoWeeks) || 1)));
+    const [start, end] = this.getScheduleWeekRange(weeks);
+    return `${this.formatShortDate(start)} al ${this.formatShortDate(end)}`;
+  }
+
+  private getScheduleWeekRange(weeks = 1): [string, string] {
+    const date = new Date(this.scheduleDate() + 'T00:00:00');
+    const day = date.getDay(); // 0 = domingo
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diffToMonday);
+    const lastDay = new Date(monday);
+    lastDay.setDate(monday.getDate() + weeks * 7 - 1);
+    return [this.toDateKey(monday), this.toDateKey(lastDay)];
+  }
+
+  private toDateKey(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  private formatShortDate(dateStr: string): string {
+    const [, month, day] = dateStr.split('-');
+    return `${day}/${month}`;
+  }
+
+  /** Dos cambios de franco no pueden estar vigentes al mismo tiempo (se pisan). */
+  private francoRangesOverlap(exc: EmployeeException, start: string, end: string): boolean {
+    const aStart = (exc.startDate || '').split('T')[0];
+    const aEnd = (exc.endDate || '').split('T')[0];
+    if (!aStart || !aEnd) return true; // cambio permanente (sin fechas): choca con todo
+    return aStart <= end && start <= aEnd;
   }
 
   isEmployeeWorkingViaException(employeeId: number, dateStr: string): boolean {
@@ -1285,15 +1470,18 @@ export class DashboardComponent {
   }
 
   getExceptionBadge(employee: Employee): string | null {
+    const parts: string[] = [];
+    const franco = this.getFrancoChangeFor(employee.id, this.scheduleDate());
+    if (franco?.dayOfWeek) {
+      parts.push(`Franco → ${this.dayLabels[franco.dayOfWeek]}`);
+    }
     const excs = this.getActiveExceptionsFor(employee.id, this.scheduleDate());
-    if (excs.length === 0) return null;
-    return excs
-      .map((exc) => {
-        const covered = exc.coveredEmployeeId ? this.allEmployees.find((e) => e.id === exc.coveredEmployeeId) : null;
-        const fn = this.functionLabels[exc.function];
-        return covered ? `${fn} · cubre a ${covered.name.split(' ')[0]}` : fn;
-      })
-      .join(' · ');
+    excs.forEach((exc) => {
+      const covered = exc.coveredEmployeeId ? this.allEmployees.find((e) => e.id === exc.coveredEmployeeId) : null;
+      const fn = this.functionLabels[exc.function];
+      parts.push(covered ? `${fn} · cubre a ${covered.name.split(' ')[0]}` : fn);
+    });
+    return parts.length > 0 ? parts.join(' · ') : null;
   }
 
   getEmployeeNameById(employeeId: number | null): string {
@@ -1308,7 +1496,7 @@ export class DashboardComponent {
     return this.allEmployees
       .filter(
         (e) =>
-          e.dayOff === weekday &&
+          this.getEffectiveDayOff(e, dateStr) === weekday &&
           !e.functions.includes('encargado') &&
           !placedEmployeeIds.includes(e.id) &&
           !this.vacations().some((v) => {
@@ -1438,6 +1626,10 @@ export class DashboardComponent {
       this.modalEmployee.set(employee);
       this.modalArea.set(area);
       this.modalDropHour.set(hour);
+      const areaFunction = AREA_TO_FUNCTION[area];
+      this.modalSuggestedFunction.set(
+        employee.functions.includes(areaFunction) ? areaFunction : null
+      );
       this.showModal.set(true);
     } catch (e) {
       console.error('Failed to parse employee data', e);
@@ -1448,17 +1640,28 @@ export class DashboardComponent {
     const employee = this.nightShiftEmployee();
     if (!employee) return;
 
+    const nightShifts: ShiftBlock[] = [
+      {
+        start: NIGHT_SHIFT_START,
+        end: extended ? NIGHT_SHIFT_EXTENDED_END : NIGHT_SHIFT_NORMAL_END,
+      },
+    ];
+
+    const conflict = this.findOverlapPlacement(employee.id, nightShifts, null);
+    if (conflict) {
+      this.toastService.error('Horario superpuesto', {
+        description: `${employee.name.split(' ')[0]} ya está asignado en ${AREA_LABELS[conflict.area]} de ${this.formatShiftsText(conflict.shifts)}.`,
+      });
+      this.closeNightShiftModal();
+      return;
+    }
+
     const newPlaced: PlacedEmployee = {
       id: Date.now(),
       employee,
       area: 'noche',
       function: 'nochero',
-      shifts: [
-        {
-          start: NIGHT_SHIFT_START,
-          end: extended ? NIGHT_SHIFT_EXTENDED_END : NIGHT_SHIFT_NORMAL_END,
-        },
-      ],
+      shifts: nightShifts,
     };
 
     this.placedEmployees.update((list) => [...list, newPlaced]);
@@ -1484,7 +1687,30 @@ export class DashboardComponent {
   onModalSave(data: { function: JobFunction; shifts: ShiftBlock[] }): void {
     const editingId = this.modalEditingId();
     const shifts = normalizeShiftBlocks(data.shifts);
-    if (shifts.length === 0) return;
+    if (shifts.length === 0) {
+      this.toastService.error('Horario inválido', {
+        description: 'Agregá al menos un horario con hora de inicio y fin.',
+      });
+      return;
+    }
+
+    const employee = this.modalEmployee();
+    if (!employee) return;
+
+    if (this.hasSelfOverlap(shifts)) {
+      this.toastService.error('Turnos superpuestos', {
+        description: 'Los horarios ingresados se superponen entre sí. Corregilos para continuar.',
+      });
+      return;
+    }
+
+    const conflict = this.findOverlapPlacement(employee.id, shifts, editingId);
+    if (conflict) {
+      this.toastService.error('Horario superpuesto', {
+        description: `${employee.name.split(' ')[0]} ya está asignado en ${AREA_LABELS[conflict.area]} de ${this.formatShiftsText(conflict.shifts)}. No puede tener doble función en la misma franja horaria.`,
+      });
+      return;
+    }
 
     if (editingId !== null) {
       this.placedEmployees.update((list) =>
@@ -1495,9 +1721,6 @@ export class DashboardComponent {
         )
       );
     } else {
-      const employee = this.modalEmployee();
-      if (!employee) return;
-
       const area = FUNCTION_TO_AREA[data.function];
       const placedId = Date.now();
       const newPlaced: PlacedEmployee = {
@@ -1537,6 +1760,44 @@ export class DashboardComponent {
     this.modalEditingId.set(null);
     this.modalEditingFunction.set(null);
     this.modalEditingShifts.set(null);
+    this.modalSuggestedFunction.set(null);
+  }
+
+  private hasSelfOverlap(shifts: ShiftBlock[]): boolean {
+    const sorted = [...shifts].sort((a, b) => a.start - b.start);
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].start < sorted[i - 1].end) return true;
+    }
+    return false;
+  }
+
+  private findOverlapPlacement(
+    employeeId: number,
+    shifts: ShiftBlock[],
+    excludePlacedId: number | null
+  ): PlacedEmployee | null {
+    return (
+      this.placedEmployees().find(
+        (p) =>
+          p.employee.id === employeeId &&
+          p.id !== excludePlacedId &&
+          p.shifts.some((own) => shifts.some((s) => s.start < own.end && own.start < s.end))
+      ) ?? null
+    );
+  }
+
+  private mergeShiftBlocks(shifts: ShiftBlock[]): ShiftBlock[] {
+    const sorted = [...shifts].sort((a, b) => a.start - b.start);
+    const merged: ShiftBlock[] = [];
+    sorted.forEach((s) => {
+      const last = merged[merged.length - 1];
+      if (last && s.start <= last.end) {
+        last.end = Math.max(last.end, s.end);
+      } else {
+        merged.push({ start: s.start, end: s.end });
+      }
+    });
+    return merged;
   }
 
   rebuildSchedules(): void {
@@ -1809,33 +2070,47 @@ export class DashboardComponent {
       const exceptions = this.getActiveExceptionsFor(employee.id, dateStr);
 
       if (exceptions.length > 0) {
-        const excShifts = exceptions.flatMap((exc) => exc.shifts);
+        // El día que aplica una excepción, el empleado cumple SOLO la excepción: el rol y
+        // el horario de la excepción reemplazan por completo su jornada habitual (ej: los
+        // lunes cubre a Sandra en caja en lugar de su puesto de perfumería, o los lunes
+        // entra a las 19 en vez de a las 15). La jornada NO se complementa ese día.
+        // Prioridad entre excepciones que se pisan: espontáneas (puntuales) antes que
+        // fijas (semanales) y funciones distintas a la contratada antes que la propia,
+        // descontando lo ya usado para no asignar doble función en la misma franja.
+        const ordered = [...exceptions].sort((a, b) => {
+          const excScore = (exc: EmployeeException) =>
+            (exc.type === 'espontanea' ? 0 : 2) +
+            (exc.function === employee.defaultFunction ? 1 : 0);
+          return excScore(a) - excScore(b);
+        });
+        const used: ShiftBlock[] = [];
+        const shiftsByFunction = new Map<JobFunction, ShiftBlock[]>();
 
-        exceptions.forEach((exc, idx) => {
+        ordered.forEach((exc) => {
+          const base = exc.shifts.length > 0 ? exc.shifts : employee.shifts;
+          const effective = this.subtractShiftBlocks(base, used);
+          if (effective.length === 0) return;
+
+          shiftsByFunction.set(exc.function, [
+            ...(shiftsByFunction.get(exc.function) ?? []),
+            ...effective,
+          ]);
+          used.push(...effective);
+        });
+
+        // Un solo puesto por función: el mismo empleado con el mismo rol es una sola fila
+        // en la grilla, nunca dos "vendedores distintos".
+        let idx = 0;
+        shiftsByFunction.forEach((shifts, fn) => {
           newPlaced.push({
             id: Date.now() + idx + Math.random(),
             employee,
-            area: FUNCTION_TO_AREA[exc.function],
-            function: exc.function,
-            shifts: exc.shifts.length > 0 ? exc.shifts : employee.shifts,
+            area: FUNCTION_TO_AREA[fn],
+            function: fn,
+            shifts: this.mergeShiftBlocks(shifts),
           });
+          idx++;
         });
-
-        const overlapsOwnJornada = excShifts.some((used) =>
-          employee.shifts.some((own) => used.start < own.end && own.start < used.end)
-        );
-        if (overlapsOwnJornada) {
-          const remaining = this.subtractShiftBlocks(employee.shifts, excShifts);
-          if (remaining.length > 0) {
-            newPlaced.push({
-              id: Date.now() + 100 + Math.random(),
-              employee,
-              area: FUNCTION_TO_AREA[employee.defaultFunction],
-              function: employee.defaultFunction,
-              shifts: remaining,
-            });
-          }
-        }
         return;
       }
 

@@ -66,7 +66,7 @@
                   }
                 </span>
               </div>
-              <div class="mt-0.5 text-[11px] text-gray-400">{{ dayLabels[employee.dayOff] }}</div>
+              <div class="mt-0.5 text-[11px] text-gray-400">{{ getFrancoDayLabel(employee) }}</div>
             </div>
             }
             </div>
@@ -457,7 +457,7 @@
                   </div>
                 </td>
                 <td class="px-4 py-2 text-sm text-gray-900">{{ functionLabels[employee.defaultFunction] }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[employee.dayOff] }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getFrancoDayLabel(employee) }}</td>
                 <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeShifts(employee) }}</td>
                 <td class="px-4 py-2 text-sm">
                   <div class="flex items-center gap-1">
@@ -818,6 +818,66 @@
           </table>
         </div>
       </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-lg font-semibold text-gray-900">Cambios de franco</h3>
+          <button (click)="openNewExceptionModal('franco')"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nuevo
+            cambio de franco</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Se mueve el día de franco del empleado: hace sus horarios habituales en
+          su día original y descansa el nuevo día. No cubre a nadie. Por defecto dura una semana.</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Franco original</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nuevo franco</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vigencia</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              @for (exc of getFrancos(); track exc.id) {
+              <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">{{ getEmployeeNameById(exc.employeeId) }}</td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getFrancoOriginalDay(exc) }}</td>
+                <td class="px-4 py-2">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700">{{
+                    dayLabels[exc.dayOfWeek!] }}</span>
+                </td>
+                <td class="px-4 py-2 text-sm text-gray-500">{{ getFrancoVigencia(exc) }}</td>
+                <td class="px-4 py-2 text-sm">
+                  <div class="flex items-center gap-1">
+                    <button (click)="openEditExceptionModal(exc)"
+                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Editar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button (click)="deleteException(exc.id)"
+                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              @if (getFrancos().length === 0) {
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No hay cambios de franco</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
       }
     </div>
   </main>
@@ -942,8 +1002,8 @@
 
 @if (showModal() && modalEmployee()) {
 <app-employee-modal [employee]="modalEmployee()!" [areaName]="areaLabels[modalArea()!]" [dropHour]="modalDropHour()"
-  [editingFunction]="modalEditingFunction()" [editingShifts]="modalEditingShifts()" (save)="onModalSave($event)"
-  (cancel)="closeModal()" />
+  [editingFunction]="modalEditingFunction()" [editingShifts]="modalEditingShifts()"
+  [suggestedFunction]="modalSuggestedFunction()" (save)="onModalSave($event)" (cancel)="closeModal()" />
 }
 
 @if (showNightShiftModal() && nightShiftEmployee()) {
@@ -1052,12 +1112,18 @@
             class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar</button>
         </div>
         @if (getEmployeeExceptions(editingEmployee()!.id).length === 0) {
-        <p class="text-xs text-gray-400">Sin excepciones. Cubre otro rol un día de la semana (fija) o en fechas
-          puntuales (espontánea).</p>
+        <p class="text-xs text-gray-400">Sin excepciones. Cubre otro rol un día de la semana (fija), en fechas
+          puntuales (espontánea) o cambia su día de franco (franco).</p>
         } @else {
         <div class="space-y-1">
           @for (exc of getEmployeeExceptions(editingEmployee()!.id); track exc.id) {
           <div class="flex items-center gap-2 text-xs bg-gray-50 rounded px-2 py-1.5">
+            @if (exc.type === 'franco') {
+            <span class="px-1.5 rounded font-medium flex-shrink-0 bg-teal-100 text-teal-700">Franco</span>
+            <span class="text-gray-600 flex-shrink-0">{{ dayLabels[editingEmployee()!.dayOff] }} → {{
+              dayLabels[exc.dayOfWeek!] }}</span>
+            <span class="text-gray-400 truncate">{{ getFrancoVigencia(exc) }}</span>
+            } @else {
             <span class="px-1.5 rounded font-medium flex-shrink-0 {{ getFunctionBadgeColor(exc.function) }}">{{
               functionLabels[exc.function] }}</span>
             <span class="text-gray-600 flex-shrink-0">
@@ -1066,6 +1132,7 @@
             </span>
             @if (exc.coveredEmployeeId !== null) {
             <span class="text-gray-500 truncate">cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }}</span>
+            }
             }
             <button (click)="deleteException(exc.id)" class="ml-auto text-red-500 hover:text-red-700 flex-shrink-0">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1157,7 +1224,8 @@
       }}</h3>
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Empleado (quien cubre)</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ exceptionForm.type === 'franco' ?
+          'Empleado' : 'Empleado (quien cubre)' }}</label>
         @if (exceptionLockedEmployeeId() !== null) {
         <input type="text" [value]="getEmployeeNameById(exceptionForm.employeeId)" disabled
           class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
@@ -1178,11 +1246,13 @@
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
           <option value="fija">Fija (día de la semana)</option>
           <option value="espontanea">Espontánea (rango de fechas)</option>
+          <option value="franco">Cambio de franco (día de la semana)</option>
         </select>
       </div>
-      @if (exceptionForm.type === 'fija') {
+      @if (exceptionForm.type === 'fija' || exceptionForm.type === 'franco') {
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Día de la semana</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ exceptionForm.type === 'franco' ?
+          'Nuevo día de franco' : 'Día de la semana' }}</label>
         <select [(ngModel)]="exceptionForm.dayOfWeek"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
           @for (day of allDays; track day) {
@@ -1204,6 +1274,54 @@
         </div>
       </div>
       }
+      @if (exceptionForm.type === 'franco') {
+      <div class="space-y-3">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+          <input type="checkbox" [(ngModel)]="exceptionForm.francoAdvanced"
+            class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+          Cambio avanzado
+          <span class="text-xs font-normal text-gray-400">por rango de fechas o varias semanas</span>
+        </label>
+        @if (exceptionForm.francoAdvanced) {
+        <div class="space-y-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Duración del cambio</label>
+            <select [(ngModel)]="exceptionForm.francoMode"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="semanas">Por una cantidad de semanas</option>
+              <option value="rango">Por un rango de fechas</option>
+            </select>
+          </div>
+          @if (exceptionForm.francoMode === 'rango') {
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+              <input type="date" [(ngModel)]="exceptionForm.startDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+              <input type="date" [(ngModel)]="exceptionForm.endDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+          </div>
+          } @else {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad de semanas</label>
+            <input type="number" [(ngModel)]="exceptionForm.francoWeeks" min="1" max="52"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <p class="text-xs text-gray-400 mt-1">Empieza en la semana que estás viendo y abarca esa semana y las
+              siguientes. Vigencia: {{ getFrancoWeeksRangeLabel() }}.</p>
+          </div>
+          }
+        </div>
+        } @else {
+        <p class="text-xs text-gray-500">Por defecto el cambio dura una semana:
+          {{ getDefaultFrancoRangeLabel() }}.</p>
+        }
+      </div>
+      }
+      @if (exceptionForm.type !== 'franco') {
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Rol que cumple</label>
         <select [(ngModel)]="exceptionForm.function"
@@ -1268,6 +1386,12 @@
           }
         </div>
       </div>
+      } @else {
+      <div class="text-xs text-gray-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+        El empleado mantiene su rol y sus horarios habituales: hace su jornada en su día de franco original y
+        descansa el nuevo día. No cubre a nadie.
+      </div>
+      }
     </div>
     <div class="flex justify-end gap-3 mt-6">
       <button (click)="closeExceptionModal()"

@@ -22,6 +22,13 @@ interface ExceptionRow {
   cubre_a: number | null;
 }
 
+interface SupabaseWriteError {
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+  code?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -29,6 +36,16 @@ export class ExceptionService {
   private authService = inject(AuthService);
   private _exceptions = signal<EmployeeException[]>([]);
   exceptions = this._exceptions.asReadonly();
+
+  private _lastError = signal<string | null>(null);
+  /** Último error devuelto por Supabase al escribir excepciones (para mostrarlo en los toasts). */
+  lastError = this._lastError.asReadonly();
+
+  private registerError(context: string, error: SupabaseWriteError | null): void {
+    console.error(`Error ${context} excepción:`, error);
+    const message = error?.message ?? 'Error desconocido';
+    this._lastError.set(error?.details ? `${message} — ${error.details}` : message);
+  }
 
   private mapRow(row: ExceptionRow): EmployeeException {
     let shifts: ShiftBlock[] = [];
@@ -46,7 +63,7 @@ export class ExceptionService {
     return {
       id: row.id,
       employeeId: row.empleado_id,
-      type: (row.tipo === 'espontanea' ? 'espontanea' : 'fija') as ExceptionType,
+      type: (row.tipo === 'espontanea' ? 'espontanea' : row.tipo === 'franco' ? 'franco' : 'fija') as ExceptionType,
       dayOfWeek: (row.dia as DayOfWeek | null) ?? null,
       startDate: row.desde ? row.desde.split('T')[0] : null,
       endDate: row.hasta ? row.hasta.split('T')[0] : null,
@@ -100,37 +117,53 @@ export class ExceptionService {
   }
 
   async create(draft: EmployeeExceptionDraft & { employeeId: number }): Promise<boolean> {
+    this._lastError.set(null);
     const { error } = await this.authService.getSupabase().from('excepciones').insert(this.rowFromDraft(draft));
-    if (error) return false;
+    if (error) {
+      this.registerError('al crear', error);
+      return false;
+    }
     await this.loadForEmployees(this.employeeIds());
     return true;
   }
 
   async update(id: number, draft: EmployeeExceptionDraft & { employeeId: number }): Promise<boolean> {
+    this._lastError.set(null);
     const { error } = await this.authService
       .getSupabase()
       .from('excepciones')
       .update(this.rowFromDraft(draft))
       .eq('id', id);
-    if (error) return false;
+    if (error) {
+      this.registerError('al actualizar', error);
+      return false;
+    }
     await this.loadForEmployees(this.employeeIds());
     return true;
   }
 
   async remove(id: number): Promise<boolean> {
+    this._lastError.set(null);
     const { error } = await this.authService.getSupabase().from('excepciones').delete().eq('id', id);
-    if (error) return false;
+    if (error) {
+      this.registerError('al eliminar', error);
+      return false;
+    }
     await this.loadForEmployees(this.employeeIds());
     return true;
   }
 
   async replaceAllForEmployee(employeeId: number, drafts: EmployeeExceptionDraft[]): Promise<boolean> {
+    this._lastError.set(null);
     const { error } = await this.authService
       .getSupabase()
       .from('excepciones')
       .delete()
       .eq('empleado_id', employeeId);
-    if (error) return false;
+    if (error) {
+      this.registerError('al reemplazar', error);
+      return false;
+    }
     if (drafts.length === 0) {
       await this.loadForEmployees(this.employeeIds());
       return true;
@@ -146,7 +179,10 @@ export class ExceptionService {
       cubre_a: draft.coveredEmployeeId,
     }));
     const { error: insertError } = await this.authService.getSupabase().from('excepciones').insert(rows);
-    if (insertError) return false;
+    if (insertError) {
+      this.registerError('al reemplazar', insertError);
+      return false;
+    }
     await this.loadForEmployees(this.employeeIds());
     return true;
   }
