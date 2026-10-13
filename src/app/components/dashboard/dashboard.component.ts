@@ -1273,7 +1273,13 @@ export class DashboardComponent {
       currentY += areaRowHeight;
     });
 
-    this.drawFrancosLine(pdf, francos, margin, currentY + 7);
+    const vacaciones = this.getVacationNamesForDate(
+      entry.scheduleDate,
+      entry.placedEmployees.map((p) => p.employeeId)
+    );
+
+    this.drawFooterLabel(pdf, 'Francos', francos, margin, currentY + 7);
+    this.drawFooterLabel(pdf, 'Vacaciones', vacaciones, margin, currentY + 12);
 
     const branchName = branch?.name || 'Sucursal';
     pdf.save(`horario_${branchName}_${entry.scheduleDate}.pdf`);
@@ -1509,14 +1515,30 @@ export class DashboardComponent {
       .join(', ');
   }
 
-  private drawFrancosLine(pdf: jsPDF, francos: string, x: number, y: number): void {
+  getVacationNamesForDate(dateStr: string, placedEmployeeIds: number[]): string {
+    return this.allEmployees
+      .filter(
+        (e) =>
+          !e.functions.includes('encargado') &&
+          !placedEmployeeIds.includes(e.id) &&
+          this.vacations().some((v) => {
+            const startStr = v.startDate.split('T')[0];
+            const endStr = v.endDate.split('T')[0];
+            return v.employeeId === e.id && dateStr >= startStr && dateStr <= endStr;
+          })
+      )
+      .map((e) => e.name.split(' ')[0])
+      .join(', ');
+  }
+
+  private drawFooterLabel(pdf: jsPDF, label: string, value: string, x: number, y: number): void {
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(55, 65, 81);
-    pdf.text('Francos:', x, y);
-    const labelWidth = pdf.getTextWidth('Francos:');
+    pdf.text(`${label}:`, x, y);
+    const labelWidth = pdf.getTextWidth(`${label}:`);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(francos || '-', x + labelWidth + 1.5, y);
+    pdf.text(value || '-', x + labelWidth + 1.5, y);
   }
 
   private drawShiftArrow(
@@ -2257,7 +2279,7 @@ export class DashboardComponent {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 6;
-      const title = `Horarios Farmacia - ${this.getCurrentDateFormatted()}`;
+      const title = `Horarios Farmacia - ${this.getScheduleDateFormatted()}`;
 
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
@@ -2358,7 +2380,13 @@ export class DashboardComponent {
         currentY += areaRowHeight;
       });
 
-      this.drawFrancosLine(pdf, francos, margin, currentY + 7);
+      const vacaciones = this.getVacationNamesForDate(
+        this.scheduleDate(),
+        this.placedEmployees().map((p) => p.employee.id)
+      );
+
+      this.drawFooterLabel(pdf, 'Francos', francos, margin, currentY + 7);
+      this.drawFooterLabel(pdf, 'Vacaciones', vacaciones, margin, currentY + 12);
 
       pdf.autoPrint();
       const blob = pdf.output('blob');
