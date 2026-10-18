@@ -1,8 +1,34 @@
-export type JobFunction = 'cajero' | 'vendedor' | 'perfumera' | 'salon' | 'inventario' | 'limpieza' | 'atencion_bot' | 'encargado' | 'nochero' | 'seguridad';
+export type JobFunction =
+  | 'cajero'
+  | 'vendedor'
+  | 'perfumera'
+  | 'salon'
+  | 'inventario'
+  | 'limpieza'
+  | 'atencion_bot'
+  | 'encargado'
+  | 'nochero'
+  | 'seguridad';
 
-export type Area = 'mostrador' | 'caja' | 'perfumeria' | 'salon' | 'inventario' | 'limpieza' | 'bot' | 'noche' | 'seguridad';
+export type Area =
+  | 'mostrador'
+  | 'caja'
+  | 'perfumeria'
+  | 'salon'
+  | 'inventario'
+  | 'limpieza'
+  | 'bot'
+  | 'noche'
+  | 'seguridad';
 
-export type DayOfWeek = 'lunes' | 'martes' | 'miércoles' | 'jueves' | 'viernes' | 'sábado' | 'domingo';
+export type DayOfWeek =
+  | 'lunes'
+  | 'martes'
+  | 'miércoles'
+  | 'jueves'
+  | 'viernes'
+  | 'sábado'
+  | 'domingo';
 
 export interface ShiftBlock {
   start: number;
@@ -36,7 +62,24 @@ export interface ScheduleHistory {
   placedEmployees: PlacedEmployeeData[];
   createdAt: Date;
   isFinal?: boolean;
+  incidents?: Incident[];
 }
+
+export type IncidentType = 'falta' | 'retiro_temprano';
+
+export interface Incident {
+  id: string;
+  employeeId: number;
+  employeeName: string;
+  type: IncidentType;
+  time: number | null;
+  note: string | null;
+}
+
+export const INCIDENT_LABELS: Record<IncidentType, string> = {
+  falta: 'Faltó',
+  retiro_temprano: 'Se retiró antes',
+};
 
 export interface PlacedEmployeeData {
   employeeId: number;
@@ -55,11 +98,23 @@ export const NIGHT_SHIFT_EXTENDED_END = 24 + 12;
 export function normalizeShiftBlocks(shifts: ShiftBlock[] | null | undefined): ShiftBlock[] {
   return (shifts || [])
     .filter((s) => s && Number.isFinite(s.start) && Number.isFinite(s.end))
-    .map((s) => (s.end < s.start ? { start: s.start, end: s.end + 24 } : { start: s.start, end: s.end }))
+    .map((s) =>
+      s.end < s.start ? { start: s.start, end: s.end + 24 } : { start: s.start, end: s.end },
+    )
     .filter((s) => s.end > s.start);
 }
 
-export const AREAS: Area[] = ['mostrador', 'caja', 'perfumeria', 'salon', 'inventario', 'limpieza', 'seguridad', 'bot', 'noche'];
+export const AREAS: Area[] = [
+  'mostrador',
+  'caja',
+  'perfumeria',
+  'salon',
+  'inventario',
+  'limpieza',
+  'seguridad',
+  'bot',
+  'noche',
+];
 
 export const AREA_TO_FUNCTION: Record<Area, JobFunction> = {
   caja: 'cajero',
@@ -70,7 +125,7 @@ export const AREA_TO_FUNCTION: Record<Area, JobFunction> = {
   limpieza: 'limpieza',
   bot: 'atencion_bot',
   noche: 'nochero',
-  seguridad: 'seguridad'
+  seguridad: 'seguridad',
 };
 
 export const FUNCTION_TO_AREA: Record<JobFunction, Area> = {
@@ -83,7 +138,7 @@ export const FUNCTION_TO_AREA: Record<JobFunction, Area> = {
   atencion_bot: 'bot',
   encargado: 'mostrador',
   nochero: 'noche',
-  seguridad: 'seguridad'
+  seguridad: 'seguridad',
 };
 
 export const AREA_LABELS: Record<Area, string> = {
@@ -111,7 +166,15 @@ export const FUNCTION_LABELS: Record<JobFunction, string> = {
   seguridad: 'Seguridad',
 };
 
-export const DAYS_OF_WEEK: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+export const DAYS_OF_WEEK: DayOfWeek[] = [
+  'lunes',
+  'martes',
+  'miércoles',
+  'jueves',
+  'viernes',
+  'sábado',
+  'domingo',
+];
 
 export const DAY_LABELS: Record<DayOfWeek, string> = {
   lunes: 'Lunes',
@@ -123,7 +186,7 @@ export const DAY_LABELS: Record<DayOfWeek, string> = {
   domingo: 'Domingo',
 };
 
-export type ExceptionType = 'fija' | 'espontanea';
+export type ExceptionType = 'fija' | 'espontanea' | 'franco';
 
 export interface EmployeeException {
   id: number;
@@ -141,10 +204,26 @@ export type EmployeeExceptionDraft = Omit<EmployeeException, 'id' | 'employeeId'
 
 export function exceptionAppliesOn(
   exception: Pick<EmployeeException, 'type' | 'dayOfWeek' | 'startDate' | 'endDate'>,
-  dateStr: string
+  dateStr: string,
 ): boolean {
+  if (exception.type === 'franco') {
+    // Cambio de franco con vigencia por rango de fechas. Sin fechas (registros viejos
+    // creados antes de la vigencia) se considera permanente.
+    const start = (exception.startDate || '').split('T')[0];
+    const end = (exception.endDate || '').split('T')[0];
+    if (!start && !end) return true;
+    return !!start && !!end && dateStr >= start && dateStr <= end;
+  }
   if (exception.type === 'fija') {
-    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const days: DayOfWeek[] = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+    ];
     const date = new Date(dateStr + 'T00:00:00');
     return exception.dayOfWeek === days[date.getDay()];
   }
@@ -152,4 +231,3 @@ export function exceptionAppliesOn(
   const end = (exception.endDate || '').split('T')[0];
   return !!start && !!end && dateStr >= start && dateStr <= end;
 }
-

@@ -1,9 +1,9 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { ScheduleHistory, PlacedEmployeeData } from '../models/employee.model';
+import { ScheduleHistory, PlacedEmployeeData, Incident } from '../models/employee.model';
 import { AuthService } from './auth.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class HistoryService {
   private authService = inject(AuthService);
@@ -12,6 +12,16 @@ export class HistoryService {
 
   history = signal<ScheduleHistory[]>([]);
   loading = signal(false);
+
+  private _lastError = signal<string | null>(null);
+  /** Último error devuelto por Supabase al escribir incidencias (para mostrarlo en los toasts). */
+  lastError = this._lastError.asReadonly();
+
+  private registerError(context: string, error: any): void {
+    console.error(`Error ${context}:`, error);
+    const message = error?.message ?? 'Error desconocido';
+    this._lastError.set(error?.details ? `${message} — ${error.details}` : message);
+  }
 
   async loadFromDatabase(): Promise<void> {
     const branch = this.authService.selectedBranch();
@@ -22,7 +32,8 @@ export class HistoryService {
 
     this.loading.set(true);
     try {
-      const { data, error } = await this.authService.getSupabase()
+      const { data, error } = await this.authService
+        .getSupabase()
         .from('historial_horarios')
         .select('*')
         .eq('branch_id', branch.id.toString())
@@ -40,11 +51,13 @@ export class HistoryService {
         date: this.formatDisplayDate(item.schedule_date),
         scheduleDate: item.schedule_date,
         branchId: item.branch_id,
-        placedEmployees: typeof item.placed_employees === 'string'
-          ? JSON.parse(item.placed_employees)
-          : item.placed_employees || [],
+        placedEmployees:
+          typeof item.placed_employees === 'string'
+            ? JSON.parse(item.placed_employees)
+            : item.placed_employees || [],
+        incidents: this.parseIncidents(item.incidencias),
         createdAt: new Date(item.created_at),
-        isFinal: item.is_final || false
+        isFinal: item.is_final || false,
       }));
 
       this.history.set(historyItems);
@@ -59,7 +72,20 @@ export class HistoryService {
   private formatDisplayDate(dateStr: string): string {
     const date = new Date(dateStr + 'T00:00:00');
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     const dayName = days[date.getDay()];
     const day = date.getDate();
     const month = months[date.getMonth()];
@@ -67,12 +93,64 @@ export class HistoryService {
     return `${dayName} ${day} de ${month} de ${year}`;
   }
 
+  private parseIncidents(raw: unknown): Incident[] {
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw || '[]');
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(raw) ? raw : [];
+  }
+
   getByDate(date: string): ScheduleHistory | undefined {
-    return this.history().find(h => h.scheduleDate === date);
+    return this.history().find((h) => h.scheduleDate === date);
+  }
+
+  async addIncident(date: string, incident: Incident): Promise<boolean> {
+    const entry = this.getByDate(date);
+    if (!entry) return false;
+
+    const incidents = [...(entry.incidents ?? []), incident];
+    const { error } = await this.authService
+      .getSupabase()
+      .from('historial_horarios')
+      .update({ incidencias: JSON.stringify(incidents) })
+      .eq('id', entry.id);
+
+    if (error) {
+      this.registerError('al registrar incidencia', error);
+      return false;
+    }
+
+    this.history.update((list) => list.map((h) => (h.id === entry.id ? { ...h, incidents } : h)));
+    return true;
+  }
+
+  async removeIncident(date: string, incidentId: string): Promise<boolean> {
+    const entry = this.getByDate(date);
+    if (!entry) return false;
+
+    const incidents = (entry.incidents ?? []).filter((i) => i.id !== incidentId);
+    const { error } = await this.authService
+      .getSupabase()
+      .from('historial_horarios')
+      .update({ incidencias: JSON.stringify(incidents) })
+      .eq('id', entry.id);
+
+    if (error) {
+      this.registerError('al eliminar incidencia', error);
+      return false;
+    }
+
+    this.history.update((list) => list.map((h) => (h.id === entry.id ? { ...h, incidents } : h)));
+    return true;
   }
 
   async deleteEntry(id: string): Promise<boolean> {
-    const { error } = await this.authService.getSupabase()
+    const { error } = await this.authService
+      .getSupabase()
       .from('historial_horarios')
       .delete()
       .eq('id', id);
@@ -82,28 +160,28 @@ export class HistoryService {
       return false;
     }
 
-    this.history.update(list => list.filter(h => h.id !== id));
+    this.history.update((list) => list.filter((h) => h.id !== id));
     return true;
   }
 
   async updateEntry(id: string, placedEmployees: PlacedEmployeeData[]): Promise<void> {
-    await this.authService.getSupabase()
+    await this.authService
+      .getSupabase()
       .from('historial_horarios')
       .update({
         placed_employees: JSON.stringify(placedEmployees),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
       .eq('id', id);
 
-    this.history.update(list => list.map(h =>
-      h.id === id
-        ? { ...h, placedEmployees, createdAt: new Date() }
-        : h
-    ));
+    this.history.update((list) =>
+      list.map((h) => (h.id === id ? { ...h, placedEmployees, createdAt: new Date() } : h)),
+    );
   }
 
   async finalizeEntry(id: string): Promise<boolean> {
-    const { error } = await this.authService.getSupabase()
+    const { error } = await this.authService
+      .getSupabase()
       .from('historial_horarios')
       .update({ is_final: true })
       .eq('id', id);
@@ -113,9 +191,7 @@ export class HistoryService {
       return false;
     }
 
-    this.history.update(list => list.map(h =>
-      h.id === id ? { ...h, isFinal: true } : h
-    ));
+    this.history.update((list) => list.map((h) => (h.id === id ? { ...h, isFinal: true } : h)));
     return true;
   }
 
@@ -143,7 +219,7 @@ export class HistoryService {
 
   async finalizeOldDrafts(): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
-    const draftsToFinalize = this.history().filter(h => !h.isFinal && h.scheduleDate < today);
+    const draftsToFinalize = this.history().filter((h) => !h.isFinal && h.scheduleDate < today);
 
     for (const draft of draftsToFinalize) {
       await this.finalizeEntry(draft.id);
@@ -151,7 +227,7 @@ export class HistoryService {
   }
 
   hasScheduleForDate(date: string): boolean {
-    return this.history().some(h => h.scheduleDate === date);
+    return this.history().some((h) => h.scheduleDate === date);
   }
 
   getNextAvailableDate(fromDate: string): string {
@@ -164,7 +240,7 @@ export class HistoryService {
       checkDate.setDate(checkDate.getDate() + 1);
     }
 
-    while (history.some(h => h.scheduleDate === checkDate.toISOString().split('T')[0])) {
+    while (history.some((h) => h.scheduleDate === checkDate.toISOString().split('T')[0])) {
       checkDate.setDate(checkDate.getDate() + 1);
     }
 

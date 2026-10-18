@@ -1,117 +1,166 @@
 <div class="flex h-screen bg-gray-50 overflow-hidden">
   @if (currentSection() === 'horario') {
-  @if (sidebarVisible()) {
-  <aside class="bg-white border-r border-gray-200 transition-all duration-300 flex-shrink-0 w-80 flex flex-col">
-    <div class="w-80 flex flex-col h-full">
-      <div class="p-4 border-b border-gray-200 bg-indigo-600 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 class="text-xl font-bold text-white">Horarios Farmacia</h1>
-          <p class="text-indigo-200 text-sm mt-1">Gestión de empleados</p>
-        </div>
-        <button (click)="toggleSidebar()" class="text-white hover:text-indigo-200 transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
-        </button>
-      </div>
-      <div class="flex items-center justify-between p-4 pb-2 flex-shrink-0">
-        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Empleados ({{ getAvailableEmployees().length }})
-        </h2>
-        <span class="text-xs text-gray-400">Arrastrá a la grilla</span>
-      </div>
-      <div class="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
-        <div class="space-y-1.5">
-          @for (employee of getAvailableEmployees(); track employee.id) {
+    @if (sidebarVisible()) {
+      <aside
+        class="bg-white border-r border-gray-200 transition-all duration-300 flex-shrink-0 w-80 flex flex-col"
+      >
+        <div class="w-80 flex flex-col h-full">
           <div
-            class="bg-white rounded-md border border-gray-200 px-2 py-1 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
-            draggable="true" (dragstart)="onEmployeeDragStart($event, employee)" (dragend)="onDragEnded($event)"
-            title="{{ employee.name }} · {{ getEmployeeShifts(employee) }}">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <p class="text-xs font-medium text-gray-900 truncate">{{ employee.name }}</p>
-              <span class="flex gap-0.5 ml-auto flex-shrink-0">
-                @for (func of getEmployeeFunctions(employee); track func) {
-                <span class="px-1 rounded text-[10px] font-medium leading-4 {{ getFunctionBadgeColor(func) }}">{{
-                  functionLabels[func] }}</span>
-                }
-              </span>
+            class="p-4 border-b border-gray-200 bg-indigo-600 flex items-center justify-between flex-shrink-0"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-white">Horarios Farmacia</h1>
+              <p class="text-indigo-200 text-sm mt-1">Gestión de empleados</p>
             </div>
-            <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
-              <span class="truncate">{{ getEmployeeShifts(employee) }}</span>
-              @if (isSplitShift(employee)) {
-              <span
-                class="px-1 rounded bg-orange-100 text-orange-700 text-[10px] font-medium leading-4 flex-shrink-0">Cortado</span>
+            <button
+              (click)="toggleSidebar()"
+              class="text-white hover:text-indigo-200 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="flex items-center justify-between p-4 pb-2 flex-shrink-0">
+            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Empleados ({{ getAvailableEmployees().length }})
+            </h2>
+            <span class="text-xs text-gray-400">Arrastrá a la grilla</span>
+          </div>
+          <div class="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
+            <div class="space-y-1.5">
+              @for (employee of getAvailableEmployees(); track employee.id) {
+                <div
+                  class="bg-white rounded-md border border-gray-200 px-2 py-1 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+                  draggable="true"
+                  (dragstart)="onEmployeeDragStart($event, employee)"
+                  (dragend)="onDragEnded($event)"
+                  title="{{ employee.name }} · {{ getEmployeeShifts(employee) }}"
+                >
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <p class="text-xs font-medium text-gray-900 truncate">{{ employee.name }}</p>
+                    <span class="flex gap-0.5 ml-auto flex-shrink-0">
+                      @for (func of getEmployeeFunctions(employee); track func) {
+                        <span
+                          class="px-1 rounded text-[10px] font-medium leading-4 {{
+                            getFunctionBadgeColor(func)
+                          }}"
+                          >{{ functionLabels[func] }}</span
+                        >
+                      }
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
+                    <span class="truncate">{{ getEmployeeShifts(employee) }}</span>
+                    @if (isSplitShift(employee)) {
+                      <span
+                        class="px-1 rounded bg-orange-100 text-orange-700 text-[10px] font-medium leading-4 flex-shrink-0"
+                        >Cortado</span
+                      >
+                    }
+                  </div>
+                  @if (getExceptionBadge(employee); as excBadge) {
+                    <div
+                      class="mt-0.5 text-[10px] font-medium text-teal-700 bg-teal-50 rounded px-1 truncate"
+                    >
+                      {{ excBadge }}
+                    </div>
+                  }
+                </div>
+              }
+              @if (getEmployeesOnDayOff().length > 0) {
+                <div class="border-t border-gray-200 pt-2 mt-2">
+                  <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    Franco ({{ getEmployeesOnDayOff().length }})
+                  </h3>
+                  <div class="space-y-1">
+                    @for (employee of getEmployeesOnDayOff(); track employee.id) {
+                      <div
+                        class="bg-gray-100 rounded-md border border-gray-200 px-2 py-1 opacity-60 cursor-not-allowed"
+                      >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <p class="text-xs font-medium text-gray-500 truncate">
+                            {{ employee.name }}
+                          </p>
+                          <span class="flex gap-0.5 ml-auto flex-shrink-0">
+                            @for (func of getEmployeeFunctions(employee); track func) {
+                              <span
+                                class="px-1 rounded text-[10px] font-medium leading-4 bg-gray-200 text-gray-500"
+                                >{{ functionLabels[func] }}</span
+                              >
+                            }
+                          </span>
+                        </div>
+                        <div class="mt-0.5 text-[11px] text-gray-400">
+                          {{ getFrancoDayLabel(employee) }}
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              @if (getEmployeesOnVacation().length > 0) {
+                <div class="border-t border-gray-200 pt-2 mt-2">
+                  <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+                    Vacaciones ({{ getEmployeesOnVacation().length }})
+                  </h3>
+                  <div class="space-y-1">
+                    @for (employee of getEmployeesOnVacation(); track employee.id) {
+                      <div
+                        class="bg-blue-50 rounded-md border border-blue-200 px-2 py-1 opacity-75 cursor-not-allowed"
+                      >
+                        <p class="text-xs font-medium text-blue-700 truncate">
+                          {{ employee.name }}
+                        </p>
+                        <div class="mt-0.5 text-[11px] text-blue-500">
+                          {{ getVacationDates(employee.id) }}
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              @if (getEncargados().length > 0) {
+                <div class="border-t border-gray-200 pt-2 mt-2">
+                  <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">
+                    Encargados ({{ getEncargados().length }})
+                  </h3>
+                  <div class="space-y-1">
+                    @for (employee of getEncargados(); track employee.id) {
+                      <div
+                        class="bg-red-50 rounded-md border border-red-200 px-2 py-1 opacity-75 cursor-not-allowed"
+                      >
+                        <p class="text-xs font-medium text-red-700 truncate">{{ employee.name }}</p>
+                      </div>
+                    }
+                  </div>
+                </div>
               }
             </div>
-            @if (getExceptionBadge(employee); as excBadge) {
-            <div class="mt-0.5 text-[10px] font-medium text-teal-700 bg-teal-50 rounded px-1 truncate">{{ excBadge }}
-            </div>
-            }
           </div>
-          }
-          @if (getEmployeesOnDayOff().length > 0) {
-          <div class="border-t border-gray-200 pt-2 mt-2">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Franco ({{
-              getEmployeesOnDayOff().length }})</h3>
-            <div class="space-y-1">
-            @for (employee of getEmployeesOnDayOff(); track employee.id) {
-            <div class="bg-gray-100 rounded-md border border-gray-200 px-2 py-1 opacity-60 cursor-not-allowed">
-              <div class="flex items-center gap-1.5 min-w-0">
-                <p class="text-xs font-medium text-gray-500 truncate">{{ employee.name }}</p>
-                <span class="flex gap-0.5 ml-auto flex-shrink-0">
-                  @for (func of getEmployeeFunctions(employee); track func) {
-                  <span
-                    class="px-1 rounded text-[10px] font-medium leading-4 bg-gray-200 text-gray-500">{{
-                    functionLabels[func] }}</span>
-                  }
-                </span>
-              </div>
-              <div class="mt-0.5 text-[11px] text-gray-400">{{ dayLabels[employee.dayOff] }}</div>
-            </div>
-            }
-            </div>
-          </div>
-          }
-          @if (getEmployeesOnVacation().length > 0) {
-          <div class="border-t border-gray-200 pt-2 mt-2">
-            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Vacaciones ({{
-              getEmployeesOnVacation().length }})</h3>
-            <div class="space-y-1">
-            @for (employee of getEmployeesOnVacation(); track employee.id) {
-            <div class="bg-blue-50 rounded-md border border-blue-200 px-2 py-1 opacity-75 cursor-not-allowed">
-              <p class="text-xs font-medium text-blue-700 truncate">{{ employee.name }}</p>
-              <div class="mt-0.5 text-[11px] text-blue-500">{{ getVacationDates(employee.id) }}</div>
-            </div>
-            }
-            </div>
-          </div>
-          }
-          @if (getEncargados().length > 0) {
-          <div class="border-t border-gray-200 pt-2 mt-2">
-            <h3 class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Encargados ({{
-              getEncargados().length }})</h3>
-            <div class="space-y-1">
-            @for (employee of getEncargados(); track employee.id) {
-            <div class="bg-red-50 rounded-md border border-red-200 px-2 py-1 opacity-75 cursor-not-allowed">
-              <p class="text-xs font-medium text-red-700 truncate">{{ employee.name }}</p>
-            </div>
-            }
-            </div>
-          </div>
-          }
         </div>
-      </div>
-    </div>
-  </aside>
-  }
-  @if (!sidebarVisible()) {
-  <button (click)="toggleSidebar()"
-    class="absolute left-0 top-20 z-10 bg-indigo-600 text-white px-1 py-3 rounded-r-lg hover:bg-indigo-700 transition-all duration-300">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-    </svg>
-  </button>
-  }
+      </aside>
+    }
+    @if (!sidebarVisible()) {
+      <button
+        (click)="toggleSidebar()"
+        class="absolute left-0 top-20 z-10 bg-indigo-600 text-white px-1 py-3 rounded-r-lg hover:bg-indigo-700 transition-all duration-300"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 5l7 7-7 7M5 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+    }
   }
 
   <main class="grow overflow-hidden flex flex-col w-full min-w-0">
@@ -119,1234 +168,2358 @@
       <div class="mb-4">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
-            <button (click)="goToPreviousDay()" class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md" title="Día anterior">
+            <button
+              (click)="goToPreviousDay()"
+              class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+              title="Día anterior"
+            >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             @if (!isToday()) {
-              <button (click)="goToToday()" class="p-1 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md" title="Volver a hoy">
+              <button
+                (click)="goToToday()"
+                class="p-1 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md"
+                title="Volver a hoy"
+              >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                  />
                 </svg>
               </button>
             }
             <h2 class="text-2xl font-bold text-gray-900">{{ getScheduleDateFormatted() }}</h2>
             <div class="relative">
-              <button (click)="toggleDatePicker()"
-                class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md" title="Seleccionar fecha">
+              <button
+                (click)="toggleDatePicker()"
+                class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+                title="Seleccionar fecha"
+              >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
               </button>
               @if (showDatePicker()) {
-                <input type="date" [value]="scheduleDate()" (change)="onDateSelected($event)"
-                  [min]="minScheduleDate()" (blur)="showDatePicker.set(false)"
-                  class="absolute top-full left-0 mt-1 p-2 border border-gray-300 rounded-lg bg-white shadow-lg z-50">
+                <input
+                  type="date"
+                  [value]="scheduleDate()"
+                  (change)="onDateSelected($event)"
+                  [min]="minScheduleDate()"
+                  (blur)="showDatePicker.set(false)"
+                  class="absolute top-full left-0 mt-1 p-2 border border-gray-300 rounded-lg bg-white shadow-lg z-50"
+                />
               }
             </div>
-            <button (click)="goToNextDay()" class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
-              title="Siguiente día">
+            <button
+              (click)="goToNextDay()"
+              class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+              title="Siguiente día"
+            >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
           </div>
           <div class="flex gap-2">
-            <button (click)="goToBranchSelect()"
-              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2">
+            <button
+              (click)="goToBranchSelect()"
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center gap-2"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
               </svg>
               Sucursales
             </button>
-            <button (click)="openSignOutDialog()"
-              class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center gap-2">
+            <button
+              (click)="openSignOutDialog()"
+              class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center gap-2"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
               </svg>
               Cerrar Sesión
             </button>
           </div>
         </div>
         <div class="flex gap-1 border-b border-gray-200">
-          <button (click)="setSection('horario')"
-            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'horario' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Horarios</button>
-          <button (click)="setSection('empleados')"
-            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'empleados' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Empleados</button>
-          <button (click)="setSection('vacaciones')"
-            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'vacaciones' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Vacaciones</button>
-          <button (click)="setSection('historial')"
-            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'historial' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Historial</button>
-          <button (click)="setSection('cambios')"
-            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{ currentSection() === 'cambios' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}">Cambios</button>
+          <button
+            (click)="setSection('horario')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{
+              currentSection() === 'horario'
+                ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }}"
+          >
+            Horarios
+          </button>
+          <button
+            (click)="setSection('empleados')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{
+              currentSection() === 'empleados'
+                ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }}"
+          >
+            Empleados
+          </button>
+          <button
+            (click)="setSection('cambios')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{
+              currentSection() === 'cambios'
+                ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }}"
+          >
+            Excepciones
+          </button>
+          <button
+            (click)="setSection('vacaciones')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{
+              currentSection() === 'vacaciones'
+                ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }}"
+          >
+            Vacaciones
+          </button>
+          <button
+            (click)="setSection('historial')"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors {{
+              currentSection() === 'historial'
+                ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-500'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }}"
+          >
+            Historial
+          </button>
         </div>
       </div>
 
       @if (currentSection() === 'horario') {
-      <div class="mb-4 flex items-center justify-between">
-        <div></div>
-        <div class="flex gap-2">
-          <button (click)="clearGrid()"
-            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Limpiar Grilla
-          </button>
-          <button (click)="saveScheduleToHistory()"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">Guardar
-            Cambios</button>
-          <button (click)="exportToPDF()"
-            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">Exportar</button>
-          <button (click)="autoAssignEmployees()"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Auto Asignar
-          </button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-          <div class="min-w-[800px]">
-            <div class="flex border-b border-gray-200 bg-gray-50">
-              <div
-                class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0">
-                Área</div>
-              @for (hour of workHours; track hour) {
-              <div
-                class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100">
-                {{ formatHour(hour) }}</div>
-              }
-            </div>
-            @for (areaSchedule of areaSchedules(); track areaSchedule.area) {
-            <div class="border-b border-gray-200">
-              <div class="flex">
-                <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
-                  <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
-                    <span class="font-medium text-gray-900 text-sm">{{ areaLabels[areaSchedule.area] }}</span>
-                  </div>
-                </div>
-                <div class="flex-1 relative">
-                  @if (areaSchedule.area === 'noche') {
-                  <div class="h-8 border-l border-gray-100 drop-zone" [attr.data-area]="areaSchedule.area"
-                    (dragover)="onDragOver($event)" (drop)="onDropOnCell($event, areaSchedule.area, 22)"></div>
-                  } @else {
-                  <div class="flex border-l border-gray-100">
-                    @for (hour of workHours; track hour) {
-                    <div class="flex-1 h-8 border-r border-gray-100 drop-zone" [attr.data-area]="areaSchedule.area"
-                      [attr.data-hour]="hour" (dragover)="onDragOver($event)"
-                      (drop)="onDropOnCell($event, areaSchedule.area, hour)"></div>
-                    }
-                  </div>
-                  }
-                  @for (track of areaSchedule.tracks; track $index) {
-                  <div class="relative h-10 border-t border-gray-100">
-                    @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
-                    <div
-                      class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{ getBarColor(schedule.function) }} shadow-sm group cursor-pointer"
-                      [ngStyle]="getBarStyle(schedule.shift)" (dblclick)="openEditModal(schedule.placedId)">
-                      <div class="flex items-center gap-1 overflow-hidden">
-                        <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name
-                          }}</span>
-                        @if (isNightShiftExtended(schedule.shift)) {
-                        <span
-                          class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap">hasta
-                          12:00</span>
-                        }
-                        <svg class="w-3 h-3 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd"
-                            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                            clip-rule="evenodd" />
-                        </svg>
-                      </div>
-                      <button (click)="removePlacedEmployee(schedule.placedId)"
-                        class="opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-red-200 ml-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    }
-                  </div>
-                  }
-                </div>
-              </div>
-            </div>
-            }
+        <div class="mb-4 flex items-center justify-between">
+          <div></div>
+          <div class="flex gap-2">
+            <button
+              (click)="clearGrid()"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              Limpiar Grilla
+            </button>
+            <button
+              (click)="saveScheduleToHistory()"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              Guardar Cambios
+            </button>
+            <button
+              (click)="exportToPDF()"
+              class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              Exportar
+            </button>
+            <button
+              (click)="autoAssignEmployees()"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              Auto Asignar
+            </button>
           </div>
         </div>
-      </div>
 
-      <div class="mt-4 flex flex-wrap gap-4">
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span
-            class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600 ml-4"><span
-            class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">Cortado</span><span>Horario
-            dividido</span></div>
-      </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <div class="min-w-[800px]">
+              <div class="flex border-b border-gray-200 bg-gray-50">
+                <div
+                  class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0"
+                >
+                  Área
+                </div>
+                @for (hour of workHours; track hour) {
+                  <div
+                    class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100"
+                  >
+                    {{ formatHour(hour) }}
+                  </div>
+                }
+              </div>
+              @for (areaSchedule of areaSchedules(); track areaSchedule.area) {
+                <div class="border-b border-gray-200">
+                  <div class="flex">
+                    <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
+                      <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                        <span class="font-medium text-gray-900 text-sm">{{
+                          areaLabels[areaSchedule.area]
+                        }}</span>
+                      </div>
+                    </div>
+                    <div class="flex-1 relative">
+                      @if (areaSchedule.area === 'noche') {
+                        <div
+                          class="h-8 border-l border-gray-100 drop-zone"
+                          [attr.data-area]="areaSchedule.area"
+                          (dragover)="onDragOver($event)"
+                          (drop)="onDropOnCell($event, areaSchedule.area, 22)"
+                        ></div>
+                      } @else {
+                        <div class="flex border-l border-gray-100">
+                          @for (hour of workHours; track hour) {
+                            <div
+                              class="flex-1 h-8 border-r border-gray-100 drop-zone"
+                              [attr.data-area]="areaSchedule.area"
+                              [attr.data-hour]="hour"
+                              (dragover)="onDragOver($event)"
+                              (drop)="onDropOnCell($event, areaSchedule.area, hour)"
+                            ></div>
+                          }
+                        </div>
+                      }
+                      @for (track of areaSchedule.tracks; track $index) {
+                        <div class="relative h-10 border-t border-gray-100">
+                          @for (
+                            schedule of track;
+                            track schedule.placedId + '-' + schedule.shift.start
+                          ) {
+                            <div
+                              class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{
+                                getBarColor(schedule.function)
+                              }} shadow-sm group cursor-pointer"
+                              [ngStyle]="getBarStyle(schedule.shift)"
+                              (dblclick)="openEditModal(schedule.placedId)"
+                            >
+                              <div class="flex items-center gap-1 overflow-hidden">
+                                <span class="text-white text-xs font-medium whitespace-nowrap">{{
+                                  schedule.employee.name
+                                }}</span>
+                                @if (isNightShiftExtended(schedule.shift)) {
+                                  <span
+                                    class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap"
+                                    >hasta 12:00</span
+                                  >
+                                }
+                                <svg
+                                  class="w-3 h-3 text-white flex-shrink-0"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fill-rule="evenodd"
+                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                    clip-rule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                              <button
+                                (click)="removePlacedEmployee(schedule.placedId)"
+                                class="opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-red-200 ml-2"
+                              >
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-4">
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600 ml-4">
+            <span
+              class="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium"
+              >Cortado</span
+            ><span>Horario dividido</span>
+          </div>
+        </div>
       }
 
       @if (currentSection() === 'empleados') {
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Empleados de la Sucursal</h3>
-          <button (click)="openNewEmployeeModal()"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nuevo
-            Empleado</button>
-        </div>
-        <div class="mb-4">
-          <div class="flex gap-2">
-            <div class="relative flex-1 max-w-md">
-              <input type="text" [ngModel]="employeeSearchText()" (ngModelChange)="employeeSearchText.set($event)"
-                placeholder="Buscar empleado..."
-                class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-            </div>
-            @if (employeeSearchText()) {
-            <button (click)="clearEmployeeSearch()"
-              class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Empleados de la Sucursal</h3>
+            <button
+              (click)="openNewEmployeeModal()"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            >
+              + Nuevo Empleado
             </button>
-            }
+          </div>
+          <div class="mb-4">
+            <div class="flex gap-2">
+              <div class="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  [ngModel]="employeeSearchText()"
+                  (ngModelChange)="employeeSearchText.set($event)"
+                  placeholder="Buscar empleado..."
+                  class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </span>
+              </div>
+              @if (employeeSearchText()) {
+                <button
+                  (click)="clearEmployeeSearch()"
+                  class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                    (click)="sortEmployees('name')"
+                  >
+                    <div class="flex items-center gap-1">
+                      Nombre
+                      @if (employeeSortApplied() && employeeSortField() === 'name') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        } @else {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th
+                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                    (click)="sortEmployees('nroVendedor')"
+                  >
+                    <div class="flex items-center gap-1">
+                      N° Vendedor
+                      @if (employeeSortApplied() && employeeSortField() === 'nroVendedor') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        } @else {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th
+                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                    (click)="sortEmployees('functions')"
+                  >
+                    <div class="flex items-center gap-1">
+                      Funciones
+                      @if (employeeSortApplied() && employeeSortField() === 'functions') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        } @else {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th
+                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                    (click)="sortEmployees('defaultFunction')"
+                  >
+                    <div class="flex items-center gap-1">
+                      Función Principal
+                      @if (employeeSortApplied() && employeeSortField() === 'defaultFunction') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        } @else {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th
+                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                    (click)="sortEmployees('dayOff')"
+                  >
+                    <div class="flex items-center gap-1">
+                      Día Libre
+                      @if (employeeSortApplied() && employeeSortField() === 'dayOff') {
+                        @if (employeeSortDirection() === 'asc') {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 15l7-7 7 7"
+                            />
+                          </svg>
+                        } @else {
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        }
+                      }
+                    </div>
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Horario
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (employee of filteredEmployees(); track employee.id) {
+                  <tr>
+                    <td class="px-4 py-2 text-sm text-gray-900">{{ employee.name }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ getEmployeeNroVendedor(employee) }}
+                    </td>
+                    <td class="px-4 py-2">
+                      <div class="flex flex-wrap gap-1">
+                        @for (func of employee.functions; track func) {
+                          <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{
+                              getFunctionBadgeColor(func)
+                            }}"
+                            >{{ functionLabels[func] }}</span
+                          >
+                        }
+                      </div>
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-900">
+                      {{ functionLabels[employee.defaultFunction] }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ getFrancoDayLabel(employee) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ getEmployeeShifts(employee) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                      <div class="flex items-center gap-1">
+                        <button
+                          (click)="openEditEmployeeModal(employee)"
+                          class="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md"
+                          title="Editar"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          (click)="openStatusModal(employee, 'renuncia')"
+                          class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md"
+                          title="Renuncia"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          (click)="openStatusModal(employee, 'despedido')"
+                          class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md"
+                          title="Despedido"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          (click)="openStatusModal(employee, 'cambio_sucursal')"
+                          class="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md"
+                          title="Cambio de Sucursal"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+                @if (filteredEmployees().length === 0) {
+                  <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                      No se encontraron empleados
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th
-                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  (click)="sortEmployees('name')">
-                  <div class="flex items-center gap-1">
-                    Nombre
-                    @if (employeeSortApplied() && employeeSortField() === 'name') {
-                    @if (employeeSortDirection() === 'asc') {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                    </svg>
-                    } @else {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    }
-                    }
-                  </div>
-                </th>
-                <th
-                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  (click)="sortEmployees('nroVendedor')">
-                  <div class="flex items-center gap-1">
-                    N° Vendedor
-                    @if (employeeSortApplied() && employeeSortField() === 'nroVendedor') {
-                    @if (employeeSortDirection() === 'asc') {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                    </svg>
-                    } @else {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    }
-                    }
-                  </div>
-                </th>
-                <th
-                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  (click)="sortEmployees('functions')">
-                  <div class="flex items-center gap-1">
-                    Funciones
-                    @if (employeeSortApplied() && employeeSortField() === 'functions') {
-                    @if (employeeSortDirection() === 'asc') {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                    </svg>
-                    } @else {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    }
-                    }
-                  </div>
-                </th>
-                <th
-                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  (click)="sortEmployees('defaultFunction')">
-                  <div class="flex items-center gap-1">
-                    Función Principal
-                    @if (employeeSortApplied() && employeeSortField() === 'defaultFunction') {
-                    @if (employeeSortDirection() === 'asc') {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                    </svg>
-                    } @else {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    }
-                    }
-                  </div>
-                </th>
-                <th
-                  class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  (click)="sortEmployees('dayOff')">
-                  <div class="flex items-center gap-1">
-                    Día Libre
-                    @if (employeeSortApplied() && employeeSortField() === 'dayOff') {
-                    @if (employeeSortDirection() === 'asc') {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                    </svg>
-                    } @else {
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                    }
-                    }
-                  </div>
-                </th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (employee of filteredEmployees(); track employee.id) {
-              <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ employee.name }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeNroVendedor(employee) }}</td>
-                <td class="px-4 py-2">
-                  <div class="flex flex-wrap gap-1">
-                    @for (func of employee.functions; track func) {
-                    <span
-                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(func) }}">{{
-                      functionLabels[func] }}</span>
-                    }
-                  </div>
-                </td>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ functionLabels[employee.defaultFunction] }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[employee.dayOff] }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ getEmployeeShifts(employee) }}</td>
-                <td class="px-4 py-2 text-sm">
-                  <div class="flex items-center gap-1">
-                    <button (click)="openEditEmployeeModal(employee)"
-                      class="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md" title="Editar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button (click)="openStatusModal(employee, 'renuncia')"
-                      class="p-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md" title="Renuncia">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                      </svg>
-                    </button>
-                    <button (click)="openStatusModal(employee, 'despedido')"
-                      class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md" title="Despedido">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    </button>
-                    <button (click)="openStatusModal(employee, 'cambio_sucursal')"
-                      class="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md"
-                      title="Cambio de Sucursal">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              }
-              @if (filteredEmployees().length === 0) {
-              <tr>
-                <td colspan="7" class="px-4 py-8 text-center text-gray-500">No se encontraron empleados</td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
       }
 
       @if (currentSection() === 'vacaciones') {
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Vacaciones</h3>
-          <button (click)="openNewVacationModal()"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
-            Vacación</button>
-        </div>
-        <div class="mb-4">
-          <div class="flex gap-2">
-            <div class="relative flex-1 max-w-md">
-              <input type="text" [ngModel]="vacationSearchText()" (ngModelChange)="vacationSearchText.set($event)"
-                placeholder="Buscar vacaciones..."
-                class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-            </div>
-            @if (vacationSearchText()) {
-            <button (click)="clearVacationSearch()"
-              class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Vacaciones</h3>
+            <button
+              (click)="openNewVacationModal()"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            >
+              + Nueva Vacación
             </button>
-            }
+          </div>
+          <div class="mb-4">
+            <div class="flex gap-2">
+              <div class="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  [ngModel]="vacationSearchText()"
+                  (ngModelChange)="vacationSearchText.set($event)"
+                  placeholder="Buscar vacaciones..."
+                  class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </span>
+              </div>
+              @if (vacationSearchText()) {
+                <button
+                  (click)="clearVacationSearch()"
+                  class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Empleado
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Desde
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Hasta
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Estado
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (vacation of filteredVacations(); track vacation.id) {
+                  <tr>
+                    <td class="px-4 py-2 text-sm text-gray-900">
+                      {{ vacation.employeeName || 'Desconocido' }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ formatDate(vacation.startDate) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ formatDate(vacation.endDate) }}
+                    </td>
+                    <td class="px-4 py-2">
+                      <span
+                        class="px-2 py-1 rounded text-xs font-medium {{
+                          vacation.estado === 'confirmada'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }}"
+                      >
+                        {{ vacation.estado === 'confirmada' ? 'Confirmada' : 'Temporal' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-2">
+                      <div class="flex items-center gap-1">
+                        @if (vacation.estado === 'temporal') {
+                          <button
+                            (click)="confirmVacation(vacation.id)"
+                            class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Confirmar"
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            (click)="openEditVacationModal(vacation)"
+                            class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                        }
+                        <button
+                          (click)="confirmDeleteVacation(vacation)"
+                          class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hasta</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (vacation of filteredVacations(); track vacation.id) {
-              <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ vacation.employeeName || 'Desconocido' }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ formatDate(vacation.startDate) }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ formatDate(vacation.endDate) }}</td>
-                <td class="px-4 py-2">
-                  <span
-                    class="px-2 py-1 rounded text-xs font-medium {{ vacation.estado === 'confirmada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                    {{ vacation.estado === 'confirmada' ? 'Confirmada' : 'Temporal' }}
-                  </span>
-                </td>
-                <td class="px-4 py-2">
-                  <div class="flex items-center gap-1">
-                    @if (vacation.estado === 'temporal') {
-                    <button (click)="confirmVacation(vacation.id)"
-                      class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Confirmar">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                    <button (click)="openEditVacationModal(vacation)"
-                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    }
-                    <button (click)="deleteVacation(vacation.id)"
-                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
       }
 
       @if (currentSection() === 'historial') {
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Historial de Horarios</h3>
-        @if (filteredHistory().length === 0) {
-        <p class="text-gray-500 text-sm">No hay horarios guardados en el historial.</p>
-        } @else {
-        <div class="mb-4">
-          <div class="flex gap-2">
-            <div class="relative flex-1 max-w-md">
-              <input type="text" [value]="historySearchText()" (input)="historySearchText.set($any($event.target).value)"
-                placeholder="Buscar por texto..."
-                class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Historial de Horarios</h3>
+          @if (filteredHistory().length === 0) {
+            <p class="text-gray-500 text-sm">No hay horarios guardados en el historial.</p>
+          } @else {
+            <div class="mb-4">
+              <div class="flex gap-2">
+                <div class="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    [value]="historySearchText()"
+                    (input)="historySearchText.set($any($event.target).value)"
+                    placeholder="Buscar por texto..."
+                    class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </span>
+                </div>
+                <input
+                  type="date"
+                  [value]="historySearchDate()"
+                  (change)="historySearchDate.set($any($event.target).value)"
+                  class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+                @if (historySearchText() || historySearchDate()) {
+                  <button
+                    (click)="clearHistorySearch()"
+                    class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                }
+              </div>
             </div>
-            <input type="date" [value]="historySearchDate()" (change)="historySearchDate.set($any($event.target).value)"
-              class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-            @if (historySearchText() || historySearchDate()) {
-            <button (click)="clearHistorySearch()"
-              class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            }
-          </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Creación</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sucursal</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleados</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (entry of filteredHistory(); track entry.id) {
-              <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ entry.date }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ entry.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ authService.selectedBranch()?.name || entry.branchId }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ entry.placedEmployees.length }}</td>
-                <td class="px-4 py-2 text-sm">
-                  @if (entry.isFinal) {
-                  <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Finalizado</span>
-                  } @else {
-                  <span class="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Borrador</span>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Fecha
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Creación
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Sucursal
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Empleados
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Incidencias
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Estado
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  @for (entry of filteredHistory(); track entry.id) {
+                    <tr>
+                      <td class="px-4 py-2 text-sm text-gray-900">{{ entry.date }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-500">
+                        {{ entry.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                      </td>
+                      <td class="px-4 py-2 text-sm text-gray-500">
+                        {{ authService.selectedBranch()?.name || entry.branchId }}
+                      </td>
+                      <td class="px-4 py-2 text-sm text-gray-500">
+                        {{ entry.placedEmployees.length }}
+                      </td>
+                      <td class="px-4 py-2 text-sm">
+                        @if ((entry.incidents?.length ?? 0) > 0) {
+                          <span
+                            class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 cursor-help"
+                            [title]="getIncidentsSummary(entry)"
+                            >{{ entry.incidents!.length }}</span
+                          >
+                        } @else {
+                          <span class="text-gray-400">-</span>
+                        }
+                      </td>
+                      <td class="px-4 py-2 text-sm">
+                        @if (entry.isFinal) {
+                          <span
+                            class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800"
+                            >Finalizado</span
+                          >
+                        } @else {
+                          <span
+                            class="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800"
+                            >Borrador</span
+                          >
+                        }
+                      </td>
+                      <td class="px-4 py-2 text-sm">
+                        <div class="flex items-center gap-1">
+                          <button
+                            (click)="openHistoryPreview(entry)"
+                            class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Ver"
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            (click)="downloadHistoryPDFDirect(entry)"
+                            class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Descargar PDF"
+                          >
+                            <svg
+                              class="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                          </button>
+                          @if (!entry.isFinal) {
+                            <button
+                              (click)="finalizeHistoryEntry(entry)"
+                              class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Finalizar"
+                            >
+                              <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              (click)="confirmDeleteHistory(entry)"
+                              class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
                   }
-                </td>
-                <td class="px-4 py-2 text-sm">
-                  <div class="flex items-center gap-1">
-                    <button (click)="openHistoryPreview(entry)"
-                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Ver">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    <button (click)="downloadHistoryPDFDirect(entry)"
-                      class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Descargar PDF">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </button>
-                    @if (!entry.isFinal) {
-                    <button (click)="finalizeHistoryEntry(entry)"
-                      class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Finalizar">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                    <button (click)="confirmDeleteHistory(entry)"
-                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                    }
-                  </div>
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          }
         </div>
-        }
-      </div>
       }
 
       @if (currentSection() === 'cambios') {
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <div class="flex justify-between items-center mb-1">
-          <h3 class="text-lg font-semibold text-gray-900">Excepciones fijas</h3>
-          <button (click)="openNewExceptionModal('fija')"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
-            excepción fija</button>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex justify-between items-center mb-1">
+            <h3 class="text-lg font-semibold text-gray-900">Excepciones fijas</h3>
+            <button
+              (click)="openNewExceptionModal('fija')"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            >
+              + Nueva excepción fija
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">
+            El empleado cumple otro rol un día fijo de la semana (ej: cubre los francos de otro
+            empleado ese día).
+          </p>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Empleado
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Día
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Rol
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Cubre a
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Horario
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (exc of getFijas(); track exc.id) {
+                  <tr>
+                    <td class="px-4 py-2 text-sm text-gray-900">
+                      {{ getEmployeeNameById(exc.employeeId) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[exc.dayOfWeek!] }}</td>
+                    <td class="px-4 py-2">
+                      <span
+                        class="px-2 py-0.5 rounded text-xs font-medium {{
+                          getFunctionBadgeColor(exc.function)
+                        }}"
+                        >{{ functionLabels[exc.function] }}</span
+                      >
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{
+                        exc.coveredEmployeeId !== null
+                          ? getEmployeeNameById(exc.coveredEmployeeId)
+                          : '-'
+                      }}
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      {{ getExceptionShiftsText(exc) }}
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                      <div class="flex items-center gap-1">
+                        <button
+                          (click)="openEditExceptionModal(exc)"
+                          class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md"
+                          title="Editar"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          (click)="confirmDeleteException(exc)"
+                          class="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                          title="Eliminar"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+                @if (getFijas().length === 0) {
+                  <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                      No hay excepciones fijas
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
-        <p class="text-xs text-gray-500 mb-4">El empleado cumple otro rol un día fijo de la semana (ej: cubre los
-          francos de otro empleado ese día).</p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Día</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cubre a</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (exc of getFijas(); track exc.id) {
-              <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ getEmployeeNameById(exc.employeeId) }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ dayLabels[exc.dayOfWeek!] }}</td>
-                <td class="px-4 py-2">
-                  <span class="px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(exc.function) }}">{{
-                    functionLabels[exc.function] }}</span>
-                </td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.coveredEmployeeId !== null ?
-                  getEmployeeNameById(exc.coveredEmployeeId) : '-' }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ getExceptionShiftsText(exc) }}</td>
-                <td class="px-4 py-2 text-sm">
-                  <div class="flex items-center gap-1">
-                    <button (click)="openEditExceptionModal(exc)"
-                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Editar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button (click)="deleteException(exc.id)"
-                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Eliminar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              }
-              @if (getFijas().length === 0) {
-              <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-gray-500">No hay excepciones fijas</td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
-        <div class="flex justify-between items-center mb-1">
-          <h3 class="text-lg font-semibold text-gray-900">Excepciones espontáneas</h3>
-          <button (click)="openNewExceptionModal('espontanea')"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">+ Nueva
-            excepción espontánea</button>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
+          <div class="flex justify-between items-center mb-1">
+            <h3 class="text-lg font-semibold text-gray-900">Excepciones espontáneas</h3>
+            <button
+              (click)="openNewExceptionModal('espontanea')"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            >
+              + Nueva excepción
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">
+            Cubre otro rol en fechas puntuales (y quien cubre descansa esos días) o mueve su día de
+            franco sin cubrir a nadie.
+          </p>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Empleado
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Tipo
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Fechas / Vigencia
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Detalle
+                  </th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (exc of getEspontaneasYFrancos(); track exc.id) {
+                  <tr>
+                    <td class="px-4 py-2 text-sm text-gray-900">
+                      {{ getEmployeeNameById(exc.employeeId) }}
+                    </td>
+                    <td class="px-4 py-2">
+                      @if (exc.type === 'franco') {
+                        <span
+                          class="px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700"
+                          >Franco</span
+                        >
+                      } @else {
+                        <span
+                          class="px-2 py-0.5 rounded text-xs font-medium {{
+                            getFunctionBadgeColor(exc.function)
+                          }}"
+                          >{{ functionLabels[exc.function] }}</span
+                        >
+                      }
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      @if (exc.type === 'franco') {
+                        {{ getFrancoVigencia(exc) }}
+                      } @else {
+                        {{ exc.startDate }} → {{ exc.endDate }}
+                      }
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-500">
+                      @if (exc.type === 'franco') {
+                        {{ getFrancoOriginalDay(exc) }} → {{ dayLabels[exc.dayOfWeek!] }}
+                      } @else {
+                        @if (exc.coveredEmployeeId !== null) {
+                          cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }} ·
+                        }
+                        {{ getExceptionShiftsText(exc) }}
+                      }
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                      <div class="flex items-center gap-1">
+                        <button
+                          (click)="openEditExceptionModal(exc)"
+                          class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md"
+                          title="Editar"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          (click)="confirmDeleteException(exc)"
+                          class="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                          title="Eliminar"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+                @if (getEspontaneasYFrancos().length === 0) {
+                  <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                      No hay excepciones espontáneas ni cambios de franco
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
-        <p class="text-xs text-gray-500 mb-4">Canjes puntuales por fecha: el empleado cubre y quien cubre descansa esos
-          días (ej: canje de franco entre dos empleados).</p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hasta</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Descansa</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Horario</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (exc of getEspontaneas(); track exc.id) {
-              <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">{{ getEmployeeNameById(exc.employeeId) }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.startDate }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.endDate }}</td>
-                <td class="px-4 py-2">
-                  <span class="px-2 py-0.5 rounded text-xs font-medium {{ getFunctionBadgeColor(exc.function) }}">{{
-                    functionLabels[exc.function] }}</span>
-                </td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ exc.coveredEmployeeId !== null ?
-                  getEmployeeNameById(exc.coveredEmployeeId) : '-' }}</td>
-                <td class="px-4 py-2 text-sm text-gray-500">{{ getExceptionShiftsText(exc) }}</td>
-                <td class="px-4 py-2 text-sm">
-                  <div class="flex items-center gap-1">
-                    <button (click)="openEditExceptionModal(exc)"
-                      class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Editar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button (click)="deleteException(exc.id)"
-                      class="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Eliminar">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-1">Incidencias del día</h3>
+          <p class="text-xs text-gray-500 mb-4">
+            {{ formatDate(scheduleDate()) }} — Registrá quién faltó o se retiró antes ese día. Queda
+            asentado en el horario del día y visible en el historial. Requiere que el horario del
+            día esté guardado.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Empleado</label>
+              <select
+                [(ngModel)]="incidentForm.employeeId"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              >
+                <option [ngValue]="null" disabled>Elegir empleado</option>
+                @for (emp of employees(); track emp.id) {
+                  <option [ngValue]="emp.id">{{ emp.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Tipo</label>
+              <select
+                [(ngModel)]="incidentForm.type"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              >
+                <option value="falta">Faltó</option>
+                <option value="retiro_temprano">Se retiró antes</option>
+              </select>
+            </div>
+            @if (incidentForm.type === 'retiro_temprano') {
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Hora de retiro</label>
+                <select
+                  [(ngModel)]="incidentForm.time"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                >
+                  @for (hour of workHours; track hour) {
+                    <option [ngValue]="hour">{{ formatHour(hour) }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Nota (opcional)</label>
+              <input
+                type="text"
+                [(ngModel)]="incidentForm.note"
+                placeholder="Motivo, aviso, etc."
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              />
+            </div>
+          </div>
+          <button
+            (click)="submitIncidentForm()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+          >
+            Registrar incidencia
+          </button>
+          @if (getIncidentsForScheduleDate().length === 0) {
+            <p class="text-sm text-gray-500 mt-4">No hay incidencias registradas para este día.</p>
+          } @else {
+            <ul class="divide-y divide-gray-100 border border-gray-200 rounded-lg mt-4">
+              @for (incident of getIncidentsForScheduleDate(); track incident.id) {
+                <li class="flex items-center gap-3 px-4 py-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 flex-shrink-0"
+                    >{{ incidentLabels[incident.type] }}</span
+                  >
+                  <span class="text-sm font-medium text-gray-900">{{ incident.employeeName }}</span>
+                  @if (incident.time !== null) {
+                    <span class="text-sm text-gray-500">a las {{ formatHour(incident.time) }}</span>
+                  }
+                  @if (incident.note) {
+                    <span class="text-sm text-gray-500 truncate">— {{ incident.note }}</span>
+                  }
+                  <button
+                    (click)="confirmDeleteIncident(incident)"
+                    title="Eliminar"
+                    class="ml-auto p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </li>
               }
-              @if (getEspontaneas().length === 0) {
-              <tr>
-                <td colspan="7" class="px-4 py-8 text-center text-gray-500">No hay excepciones espontáneas</td>
-              </tr>
-              }
-            </tbody>
-          </table>
+            </ul>
+          }
         </div>
-      </div>
       }
     </div>
   </main>
 </div>
 
-@if (showHistoryDeleteConfirm()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      </div>
-      <h3 class="text-lg font-semibold text-gray-900">Confirmar eliminación</h3>
-    </div>
-    <p class="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este horario? Esta acción no se puede deshacer.</p>
-    <div class="flex justify-end gap-2">
-      <button (click)="cancelDeleteHistory()"
-        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium">
-        Cancelar
-      </button>
-      <button (click)="deleteHistoryEntry()"
-        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
-        Eliminar
-      </button>
-    </div>
-  </div>
-</div>
-}
-
 @if (showHistoryPreviewModal() && historyPreviewEntry()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-auto">
-    <div class="p-4 border-b border-gray-200 bg-indigo-600 rounded-t-xl flex items-center justify-between">
-      <h3 class="text-lg font-semibold text-white">Vista previa - {{ historyPreviewEntry()!.date }}</h3>
-      <div class="flex items-center gap-2">
-        <button (click)="downloadHistoryPDF()"
-          class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors" title="Descargar PDF">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        </button>
-        <button (click)="closeHistoryPreview()"
-          class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    <div class="p-4">
-      <div class="border border-gray-200 rounded-lg overflow-hidden">
-        <div class="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
-          <h4 class="font-semibold text-gray-900">{{ authService.selectedBranch()?.name }}</h4>
-          <span class="text-sm text-gray-500">{{ historyPreviewEntry()!.scheduleDate }}</span>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-auto">
+      <div
+        class="p-4 border-b border-gray-200 bg-indigo-600 rounded-t-xl flex items-center justify-between"
+      >
+        <h3 class="text-lg font-semibold text-white">
+          Vista previa - {{ historyPreviewEntry()!.date }}
+        </h3>
+        <div class="flex items-center gap-2">
+          <button
+            (click)="downloadHistoryPDF()"
+            class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors"
+            title="Descargar PDF"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
+          <button
+            (click)="closeHistoryPreview()"
+            class="p-1.5 text-white hover:bg-indigo-500 rounded-lg transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
-        <div class="overflow-x-auto">
-          <div class="min-w-full">
-            <div class="flex bg-gray-100 border-b border-gray-200">
-              <div class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0">Área</div>
-              @for (hour of workHours; track hour) {
-              <div class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100">
-                {{ formatHour(hour) }}
-              </div>
-              }
-            </div>
-            @for (areaSchedule of getPreviewAreaSchedules(historyPreviewEntry()!); track areaSchedule.area) {
-            <div class="border-b border-gray-200">
-              <div class="flex">
-                <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
-                  <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
-                    <span class="font-medium text-gray-900 text-sm">{{ areaLabels[areaSchedule.area] }}</span>
-                  </div>
+      </div>
+      <div class="p-4">
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
+            <h4 class="font-semibold text-gray-900">{{ authService.selectedBranch()?.name }}</h4>
+            <span class="text-sm text-gray-500">{{ historyPreviewEntry()!.scheduleDate }}</span>
+          </div>
+          <div class="overflow-x-auto">
+            <div class="min-w-full">
+              <div class="flex bg-gray-100 border-b border-gray-200">
+                <div
+                  class="w-32 px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200 flex-shrink-0"
+                >
+                  Área
                 </div>
-                <div class="flex-1 relative">
-                  <div class="flex border-l border-gray-100">
-                    @for (hour of workHours; track hour) {
-                    <div class="flex-1 h-8 border-r border-gray-100"></div>
-                    }
+                @for (hour of workHours; track hour) {
+                  <div
+                    class="flex-1 px-1 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-100"
+                  >
+                    {{ formatHour(hour) }}
                   </div>
-                  @for (track of areaSchedule.tracks; track $index) {
-                  <div class="relative h-10 border-t border-gray-100">
-                    @for (schedule of track; track schedule.placedId + '-' + schedule.shift.start) {
-                    <div
-                      class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{ getBarColor(schedule.function) }} shadow-sm"
-                      [ngStyle]="getBarStyle(schedule.shift)">
-                      <div class="flex items-center gap-1 overflow-hidden">
-                        <span class="text-white text-xs font-medium whitespace-nowrap">{{ schedule.employee.name }}</span>
-                        @if (isNightShiftExtended(schedule.shift)) {
-                        <span
-                          class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap">hasta 12:00</span>
-                        }
+                }
+              </div>
+              @for (
+                areaSchedule of getPreviewAreaSchedules(historyPreviewEntry()!);
+                track areaSchedule.area
+              ) {
+                <div class="border-b border-gray-200">
+                  <div class="flex">
+                    <div class="w-32 px-4 py-3 border-r border-gray-200 flex-shrink-0 bg-gray-50">
+                      <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                        <span class="font-medium text-gray-900 text-sm">{{
+                          areaLabels[areaSchedule.area]
+                        }}</span>
                       </div>
                     </div>
-                    }
+                    <div class="flex-1 relative">
+                      <div class="flex border-l border-gray-100">
+                        @for (hour of workHours; track hour) {
+                          <div class="flex-1 h-8 border-r border-gray-100"></div>
+                        }
+                      </div>
+                      @for (track of areaSchedule.tracks; track $index) {
+                        <div class="relative h-10 border-t border-gray-100">
+                          @for (
+                            schedule of track;
+                            track schedule.placedId + '-' + schedule.shift.start
+                          ) {
+                            <div
+                              class="absolute top-1 h-8 rounded-md flex items-center justify-between px-2 {{
+                                getBarColor(schedule.function)
+                              }} shadow-sm"
+                              [ngStyle]="getBarStyle(schedule.shift)"
+                            >
+                              <div class="flex items-center gap-1 overflow-hidden">
+                                <span class="text-white text-xs font-medium whitespace-nowrap">{{
+                                  schedule.employee.name
+                                }}</span>
+                                @if (isNightShiftExtended(schedule.shift)) {
+                                  <span
+                                    class="text-white text-[10px] font-semibold bg-white/25 rounded px-1 whitespace-nowrap"
+                                    >hasta 12:00</span
+                                  >
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
                   </div>
-                  }
                 </div>
-              </div>
+              }
             </div>
-            }
           </div>
         </div>
-      </div>
-      <div class="mt-4 flex flex-wrap gap-4">
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span></div>
-        <div class="flex items-center gap-2 text-sm text-gray-600"><span class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span></div>
+        <div class="mt-4 flex flex-wrap gap-4">
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-blue-500 rounded"></span><span>Cajero</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-emerald-500 rounded"></span><span>Vendedor</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-pink-500 rounded"></span><span>Perfumera</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-purple-500 rounded"></span><span>Salón</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-amber-500 rounded"></span><span>Inventario</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-gray-500 rounded"></span><span>Limpieza</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-teal-500 rounded"></span><span>Seguridad</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-cyan-500 rounded"></span><span>Bot</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <span class="w-4 h-4 bg-slate-800 rounded"></span><span>Nochero</span>
+          </div>
+        </div>
+        @if ((historyPreviewEntry()!.incidents?.length ?? 0) > 0) {
+          <div class="mt-4 border-t border-gray-200 pt-3">
+            <h4 class="text-sm font-semibold text-gray-900 mb-2">Incidencias del día</h4>
+            <ul class="space-y-1">
+              @for (incident of historyPreviewEntry()!.incidents; track incident.id) {
+                <li class="flex items-center gap-2 text-sm flex-wrap">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">{{
+                    incidentLabels[incident.type]
+                  }}</span>
+                  <span class="font-medium text-gray-900">{{ incident.employeeName }}</span>
+                  @if (incident.time !== null) {
+                    <span class="text-gray-500">a las {{ formatHour(incident.time) }}</span>
+                  }
+                  @if (incident.note) {
+                    <span class="text-gray-500">— {{ incident.note }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        }
       </div>
     </div>
   </div>
-</div>
 }
 
 @if (showModal() && modalEmployee()) {
-<app-employee-modal [employee]="modalEmployee()!" [areaName]="areaLabels[modalArea()!]" [dropHour]="modalDropHour()"
-  [editingFunction]="modalEditingFunction()" [editingShifts]="modalEditingShifts()" (save)="onModalSave($event)"
-  (cancel)="closeModal()" />
+  <app-employee-modal
+    [employee]="modalEmployee()!"
+    [areaName]="areaLabels[modalArea()!]"
+    [dropHour]="modalDropHour()"
+    [editingFunction]="modalEditingFunction()"
+    [editingShifts]="modalEditingShifts()"
+    [suggestedFunction]="modalSuggestedFunction()"
+    (save)="onModalSave($event)"
+    (cancel)="closeModal()"
+  />
 }
 
 @if (showNightShiftModal() && nightShiftEmployee()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-1">Asignar nochero</h3>
-    <p class="text-sm text-gray-500 mb-4">{{ nightShiftEmployee()!.name }} - turno de 22:00 a:</p>
-    <div class="space-y-2">
-      <button (click)="placeNightEmployee(false)"
-        class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
-        <span class="block font-medium text-gray-900 text-sm">7:00 (horario normal)</span>
-        <span class="block text-xs text-gray-500 mt-0.5">Sale a las 7:00 del día siguiente</span>
-      </button>
-      <button (click)="placeNightEmployee(true)"
-        class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
-        <span class="block font-medium text-gray-900 text-sm">12:00 del día siguiente</span>
-        <span class="block text-xs text-gray-500 mt-0.5">Se queda hasta el mediodía</span>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">Asignar nochero</h3>
+      <p class="text-sm text-gray-500 mb-4">{{ nightShiftEmployee()!.name }} - turno de 22:00 a:</p>
+      <div class="space-y-2">
+        <button
+          (click)="placeNightEmployee(false)"
+          class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
+        >
+          <span class="block font-medium text-gray-900 text-sm">7:00 (horario normal)</span>
+          <span class="block text-xs text-gray-500 mt-0.5">Sale a las 7:00 del día siguiente</span>
+        </button>
+        <button
+          (click)="placeNightEmployee(true)"
+          class="w-full px-4 py-3 text-left rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors"
+        >
+          <span class="block font-medium text-gray-900 text-sm">12:00 del día siguiente</span>
+          <span class="block text-xs text-gray-500 mt-0.5">Se queda hasta el mediodía</span>
+        </button>
+      </div>
+      <button
+        (click)="closeNightShiftModal()"
+        class="mt-4 w-full px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+      >
+        Cancelar
       </button>
     </div>
-    <button (click)="closeNightShiftModal()"
-      class="mt-4 w-full px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium">
-      Cancelar
-    </button>
   </div>
-</div>
 }
 
 @if (showEmployeeModal()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingEmployee() ? 'Editar Empleado' : 'Nuevo Empleado' }}
-    </h3>
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-        <input type="text" [(ngModel)]="employeeForm.name"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Funciones</label>
-        <div class="flex flex-wrap gap-2">
-          @for (func of availableFunctions; track func) {
-          <label class="inline-flex items-center">
-            <input type="checkbox" [checked]="employeeForm.functions.includes(func)"
-              (change)="toggleEmployeeFunction(func)"
-              class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-            <span class="ml-2 text-sm text-gray-700">{{ functionLabels[func] }}</span>
-          </label>
-          }
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        {{ editingEmployee() ? 'Editar Empleado' : 'Nuevo Empleado' }}
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+          <input
+            type="text"
+            [(ngModel)]="employeeForm.name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
         </div>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Función Principal</label>
-        <select [(ngModel)]="employeeForm.defaultFunction"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          @for (func of employeeForm.functions; track func) {
-          <option [value]="func">{{ functionLabels[func] }}</option>
-          }
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Número de Vendedor</label>
-        <input type="number" [(ngModel)]="employeeForm.nroVendedor"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="Opcional">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Día de Franco</label>
-        <select [(ngModel)]="employeeForm.dayOff"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          @for (day of allDays; track day) {
-          <option [value]="day">{{ dayLabels[day] }}</option>
-          }
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Horario</label>
-        <div class="space-y-2">
-          @for (shift of employeeForm.shifts; track $index; let i = $index) {
-          <div class="flex items-center gap-2">
-            <input type="number" [(ngModel)]="shift.start" min="7" max="23"
-              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="Desde">
-            <span class="text-gray-500">a</span>
-            <input type="number" [(ngModel)]="shift.end" min="7" max="23"
-              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="Hasta">
-            @if (employeeForm.shifts.length > 1) {
-            <button (click)="removeShift(i)" class="text-red-500 hover:text-red-700">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Funciones</label>
+          <div class="flex flex-wrap gap-2">
+            @for (func of availableFunctions; track func) {
+              <label class="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  [checked]="employeeForm.functions.includes(func)"
+                  (change)="toggleEmployeeFunction(func)"
+                  class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span class="ml-2 text-sm text-gray-700">{{ functionLabels[func] }}</span>
+              </label>
             }
           </div>
-          }
-          <button (click)="addShift()" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar
-            turno</button>
         </div>
-      </div>
-      @if (editingEmployee()) {
-      <div class="border-t border-gray-200 pt-4">
-        <div class="flex items-center justify-between mb-2">
-          <label class="block text-sm font-medium text-gray-700">Excepciones</label>
-          <button (click)="openNewExceptionModal('fija', editingEmployee()!)"
-            class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar</button>
-        </div>
-        @if (getEmployeeExceptions(editingEmployee()!.id).length === 0) {
-        <p class="text-xs text-gray-400">Sin excepciones. Cubre otro rol un día de la semana (fija) o en fechas
-          puntuales (espontánea).</p>
-        } @else {
-        <div class="space-y-1">
-          @for (exc of getEmployeeExceptions(editingEmployee()!.id); track exc.id) {
-          <div class="flex items-center gap-2 text-xs bg-gray-50 rounded px-2 py-1.5">
-            <span class="px-1.5 rounded font-medium flex-shrink-0 {{ getFunctionBadgeColor(exc.function) }}">{{
-              functionLabels[exc.function] }}</span>
-            <span class="text-gray-600 flex-shrink-0">
-              @if (exc.type === 'fija') { {{ dayLabels[exc.dayOfWeek!] }} } @else { {{ exc.startDate }} → {{
-              exc.endDate }} }
-            </span>
-            @if (exc.coveredEmployeeId !== null) {
-            <span class="text-gray-500 truncate">cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }}</span>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Función Principal</label>
+          <select
+            [(ngModel)]="employeeForm.defaultFunction"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            @for (func of employeeForm.functions; track func) {
+              <option [value]="func">{{ functionLabels[func] }}</option>
             }
-            <button (click)="deleteException(exc.id)" class="ml-auto text-red-500 hover:text-red-700 flex-shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Número de Vendedor</label>
+          <input
+            type="number"
+            [(ngModel)]="employeeForm.nroVendedor"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Opcional"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Día de Franco</label>
+          <select
+            [(ngModel)]="employeeForm.dayOff"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            @for (day of allDays; track day) {
+              <option [value]="day">{{ dayLabels[day] }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+          <div class="space-y-2">
+            @for (shift of employeeForm.shifts; track $index; let i = $index) {
+              <div class="flex items-center gap-2">
+                <input
+                  type="number"
+                  [(ngModel)]="shift.start"
+                  min="7"
+                  max="23"
+                  class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Desde"
+                />
+                <span class="text-gray-500">a</span>
+                <input
+                  type="number"
+                  [(ngModel)]="shift.end"
+                  min="7"
+                  max="23"
+                  class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Hasta"
+                />
+                @if (employeeForm.shifts.length > 1) {
+                  <button (click)="removeShift(i)" class="text-red-500 hover:text-red-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                }
+              </div>
+            }
+            <button
+              (click)="addShift()"
+              class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+            >
+              + Agregar turno
             </button>
           </div>
-          }
         </div>
+        @if (editingEmployee()) {
+          <div class="border-t border-gray-200 pt-4">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-gray-700">Excepciones</label>
+              <button
+                (click)="openNewExceptionModal('fija', editingEmployee()!)"
+                class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+              >
+                + Agregar
+              </button>
+            </div>
+            @if (getEmployeeExceptions(editingEmployee()!.id).length === 0) {
+              <p class="text-xs text-gray-400">
+                Sin excepciones. Cubre otro rol un día de la semana (fija), en fechas puntuales
+                (espontánea) o cambia su día de franco (franco).
+              </p>
+            } @else {
+              <div class="space-y-1">
+                @for (exc of getEmployeeExceptions(editingEmployee()!.id); track exc.id) {
+                  <div class="flex items-center gap-2 text-xs bg-gray-50 rounded px-2 py-1.5">
+                    @if (exc.type === 'franco') {
+                      <span
+                        class="px-1.5 rounded font-medium flex-shrink-0 bg-teal-100 text-teal-700"
+                        >Franco</span
+                      >
+                      <span class="text-gray-600 flex-shrink-0"
+                        >{{ dayLabels[editingEmployee()!.dayOff] }} →
+                        {{ dayLabels[exc.dayOfWeek!] }}</span
+                      >
+                      <span class="text-gray-400 truncate">{{ getFrancoVigencia(exc) }}</span>
+                    } @else {
+                      <span
+                        class="px-1.5 rounded font-medium flex-shrink-0 {{
+                          getFunctionBadgeColor(exc.function)
+                        }}"
+                        >{{ functionLabels[exc.function] }}</span
+                      >
+                      <span class="text-gray-600 flex-shrink-0">
+                        @if (exc.type === 'fija') {
+                          {{ dayLabels[exc.dayOfWeek!] }}
+                        } @else {
+                          {{ exc.startDate }} → {{ exc.endDate }}
+                        }
+                      </span>
+                      @if (exc.coveredEmployeeId !== null) {
+                        <span class="text-gray-500 truncate"
+                          >cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }}</span
+                        >
+                      }
+                    }
+                    <button
+                      (click)="confirmDeleteException(exc)"
+                      class="ml-auto text-red-500 hover:text-red-700 flex-shrink-0"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
         }
       </div>
-      }
-    </div>
-    <div class="flex justify-end gap-3 mt-6">
-      <button (click)="closeEmployeeModal()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="submitEmployeeForm()"
-        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">{{ editingEmployee()
-        ? 'Guardar' : 'Crear' }}</button>
+      <div class="flex justify-end gap-3 mt-6">
+        <button
+          (click)="closeEmployeeModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          (click)="submitEmployeeForm()"
+          class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors"
+        >
+          {{ editingEmployee() ? 'Guardar' : 'Crear' }}
+        </button>
+      </div>
     </div>
   </div>
-</div>
 }
 
 @if (showDeleteConfirm()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar Eliminación</h3>
-    <p class="text-gray-600 mb-6">¿Estás seguro de que querés eliminar a <strong>{{ employeeToDelete()?.name
-        }}</strong>?</p>
-    <div class="flex justify-end gap-3">
-      <button (click)="cancelDelete()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="confirmDelete()"
-        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors">Eliminar</button>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar Eliminación</h3>
+      <p class="text-gray-600 mb-6">
+        ¿Estás seguro de que querés eliminar a <strong>{{ employeeToDelete()?.name }}</strong
+        >?
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
+          (click)="cancelDelete()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          (click)="confirmDelete()"
+          class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors"
+        >
+          Eliminar
+        </button>
+      </div>
     </div>
   </div>
-</div>
 }
 
 @if (showVacationModal()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingVacation() ? 'Editar Vacación' : 'Nueva Vacación' }}
-    </h3>
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Empleado</label>
-        @if (editingVacation()) {
-        <input type="text" [value]="editingVacation()!.employeeName" disabled
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
-        } @else {
-        <select [(ngModel)]="vacationForm.employeeId"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option value="">Seleccionar empleado...</option>
-          @for (emp of allEmployees; track emp.id) {
-          <option [value]="emp.id">{{ emp.name }}</option>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        {{ editingVacation() ? 'Editar Vacación' : 'Nueva Vacación' }}
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Empleado</label>
+          @if (editingVacation()) {
+            <input
+              type="text"
+              [value]="editingVacation()!.employeeName"
+              disabled
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+            />
+          } @else {
+            <select
+              [(ngModel)]="vacationForm.employeeId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Seleccionar empleado...</option>
+              @for (emp of allEmployees; track emp.id) {
+                <option [value]="emp.id">{{ emp.name }}</option>
+              }
+            </select>
           }
-        </select>
-        }
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+          <input
+            type="date"
+            [(ngModel)]="vacationForm.startDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
+          <input
+            type="date"
+            [(ngModel)]="vacationForm.endDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
-        <input type="date" [(ngModel)]="vacationForm.startDate"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <div class="flex justify-end gap-3 mt-6">
+        <button
+          (click)="closeVacationModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          (click)="submitVacationForm()"
+          class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors"
+        >
+          {{ editingVacation() ? 'Guardar' : 'Crear' }}
+        </button>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
-        <input type="date" [(ngModel)]="vacationForm.endDate"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-      </div>
-    </div>
-    <div class="flex justify-end gap-3 mt-6">
-      <button (click)="closeVacationModal()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="submitVacationForm()"
-        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">
-        {{ editingVacation() ? 'Guardar' : 'Crear' }}
-      </button>
     </div>
   </div>
-</div>
 }
 
 @if (showExceptionModal()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ exceptionEditing() ? 'Editar Excepción' : 'Nueva Excepción'
-      }}</h3>
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Empleado (quien cubre)</label>
-        @if (exceptionLockedEmployeeId() !== null) {
-        <input type="text" [value]="getEmployeeNameById(exceptionForm.employeeId)" disabled
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">
+        {{ exceptionEditing() ? 'Editar Excepción' : 'Nueva Excepción' }}
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{
+            exceptionForm.type === 'franco' ? 'Empleado' : 'Empleado (quien cubre)'
+          }}</label>
+          @if (exceptionLockedEmployeeId() !== null) {
+            <input
+              type="text"
+              [value]="getEmployeeNameById(exceptionForm.employeeId)"
+              disabled
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+            />
+          } @else {
+            <select
+              [ngModel]="exceptionForm.employeeId"
+              (ngModelChange)="exceptionForm.employeeId = $event; onExceptionEmployeeChange()"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option [ngValue]="null">Seleccionar empleado...</option>
+              @for (emp of getExceptionEmployees(); track emp.id) {
+                <option [ngValue]="emp.id">{{ emp.name }}</option>
+              }
+            </select>
+          }
+        </div>
+        @if (exceptionForm.type !== 'fija') {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Funcionalidad</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                (click)="exceptionForm.type = 'espontanea'"
+                [class]="
+                  exceptionForm.type === 'espontanea'
+                    ? 'px-3 py-2 rounded-lg text-sm font-medium border border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50'
+                "
+              >
+                Cubre a alguien
+              </button>
+              <button
+                type="button"
+                (click)="exceptionForm.type = 'franco'"
+                [class]="
+                  exceptionForm.type === 'franco'
+                    ? 'px-3 py-2 rounded-lg text-sm font-medium border border-teal-600 bg-teal-50 text-teal-700'
+                    : 'px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50'
+                "
+              >
+                Mueve su franco
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">
+              @if (exceptionForm.type === 'franco') {
+                Mueve su día de descanso en un rango de fechas, sin cubrir a nadie.
+              } @else {
+                Reemplaza su jornada y, si elegís a alguien, esa persona descansa esos días.
+              }
+            </p>
+          </div>
+        }
+        @if (exceptionForm.type === 'fija' || exceptionForm.type === 'franco') {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{
+              exceptionForm.type === 'franco' ? 'Nuevo día de franco' : 'Día de la semana'
+            }}</label>
+            <select
+              [(ngModel)]="exceptionForm.dayOfWeek"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              @for (day of allDays; track day) {
+                <option [value]="day">{{ dayLabels[day] }}</option>
+              }
+            </select>
+          </div>
         } @else {
-        <select [ngModel]="exceptionForm.employeeId"
-          (ngModelChange)="exceptionForm.employeeId = $event; onExceptionEmployeeChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option [ngValue]="null">Seleccionar empleado...</option>
-          @for (emp of getExceptionEmployees(); track emp.id) {
-          <option [ngValue]="emp.id">{{ emp.name }}</option>
-          }
-        </select>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+              <input
+                type="date"
+                [(ngModel)]="exceptionForm.startDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+              <input
+                type="date"
+                [(ngModel)]="exceptionForm.endDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
         }
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-        <select [(ngModel)]="exceptionForm.type"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option value="fija">Fija (día de la semana)</option>
-          <option value="espontanea">Espontánea (rango de fechas)</option>
-        </select>
-      </div>
-      @if (exceptionForm.type === 'fija') {
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Día de la semana</label>
-        <select [(ngModel)]="exceptionForm.dayOfWeek"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          @for (day of allDays; track day) {
-          <option [value]="day">{{ dayLabels[day] }}</option>
-          }
-        </select>
-      </div>
-      } @else {
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-          <input type="date" [(ngModel)]="exceptionForm.startDate"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-          <input type="date" [(ngModel)]="exceptionForm.endDate"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-      </div>
-      }
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Rol que cumple</label>
-        <select [(ngModel)]="exceptionForm.function"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          @for (func of getExceptionFunctionOptions(); track func) {
-          <option [value]="func">{{ functionLabels[func] }}</option>
-          }
-        </select>
-        @if (getExceptionFunctionOptions().length === 0) {
-        <p class="text-xs text-gray-400 mt-1">Elegí primero el empleado.</p>
-        }
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">{{ exceptionForm.type === 'espontanea' ? 'Cubre a
-          (descansa en esas fechas)' : 'Cubre a (opcional, hereda su horario)' }}</label>
-        <select [ngModel]="exceptionForm.coveredEmployeeId"
-          (ngModelChange)="exceptionForm.coveredEmployeeId = $event; onExceptionCoveredChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option [ngValue]="null">Nadie</option>
-          @for (emp of getExceptionEmployees(); track emp.id) {
-          @if (emp.id !== exceptionForm.employeeId) {
-          <option [ngValue]="emp.id">{{ emp.name }}</option>
-          }
-          }
-        </select>
-      </div>
-      @if (getExceptionReferenceShifts().length > 1) {
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Parte de la jornada</label>
-        <select [ngModel]="exceptionForm.partIndex"
-          (ngModelChange)="exceptionForm.partIndex = $event; onExceptionPartChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option [ngValue]="0">Toda la jornada</option>
-          @for (shift of getExceptionReferenceShifts(); track $index; let i = $index) {
-          <option [ngValue]="i + 1">Turno {{ i + 1 }} ({{ shift.start }}:00 a {{ shift.end }}:00)</option>
-          }
-        </select>
-      </div>
-      }
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <label class="block text-sm font-medium text-gray-700">Horario que cumple</label>
-          <button (click)="addExceptionShift()"
-            class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ Agregar turno</button>
-        </div>
-        <div class="space-y-2">
-          @for (shift of exceptionForm.shifts; track $index; let i = $index) {
-          <div class="flex items-center gap-2">
-            <input type="number" [(ngModel)]="shift.start" min="6" max="23"
-              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-            <span class="text-gray-500">a</span>
-            <input type="number" [(ngModel)]="shift.end" min="7" max="36"
-              class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-            @if (exceptionForm.shifts.length > 1) {
-            <button (click)="removeExceptionShift(i)" class="text-red-500 hover:text-red-700">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        @if (exceptionForm.type === 'franco') {
+          <div class="space-y-3">
+            <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                [(ngModel)]="exceptionForm.francoAdvanced"
+                class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              Cambio avanzado
+              <span class="text-xs font-normal text-gray-400"
+                >por rango de fechas o varias semanas</span
+              >
+            </label>
+            @if (exceptionForm.francoAdvanced) {
+              <div class="space-y-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Duración del cambio</label
+                  >
+                  <select
+                    [(ngModel)]="exceptionForm.francoMode"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="semanas">Por una cantidad de semanas</option>
+                    <option value="rango">Por un rango de fechas</option>
+                  </select>
+                </div>
+                @if (exceptionForm.francoMode === 'rango') {
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                      <input
+                        type="date"
+                        [(ngModel)]="exceptionForm.startDate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                      <input
+                        type="date"
+                        [(ngModel)]="exceptionForm.endDate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                } @else {
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                      >Cantidad de semanas</label
+                    >
+                    <input
+                      type="number"
+                      [(ngModel)]="exceptionForm.francoWeeks"
+                      min="1"
+                      max="52"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p class="text-xs text-gray-400 mt-1">
+                      Empieza en la semana que estás viendo y abarca esa semana y las siguientes.
+                      Vigencia: {{ getFrancoWeeksRangeLabel() }}.
+                    </p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-xs text-gray-500">
+                Por defecto el cambio dura una semana: {{ getDefaultFrancoRangeLabel() }}.
+              </p>
             }
           </div>
+        }
+        @if (exceptionForm.type !== 'franco') {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Rol que cumple</label>
+            <select
+              [(ngModel)]="exceptionForm.function"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              @for (func of getExceptionFunctionOptions(); track func) {
+                <option [value]="func">{{ functionLabels[func] }}</option>
+              }
+            </select>
+            @if (getExceptionFunctionOptions().length === 0) {
+              <p class="text-xs text-gray-400 mt-1">Elegí primero el empleado.</p>
+            }
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{
+              exceptionForm.type === 'espontanea'
+                ? 'Cubre a
+          (descansa en esas fechas)'
+                : 'Cubre a (opcional, hereda su horario)'
+            }}</label>
+            <select
+              [ngModel]="exceptionForm.coveredEmployeeId"
+              (ngModelChange)="exceptionForm.coveredEmployeeId = $event; onExceptionCoveredChange()"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option [ngValue]="null">Nadie</option>
+              @for (emp of getExceptionEmployees(); track emp.id) {
+                @if (emp.id !== exceptionForm.employeeId) {
+                  <option [ngValue]="emp.id">{{ emp.name }}</option>
+                }
+              }
+            </select>
+          </div>
+          @if (getExceptionReferenceShifts().length > 1) {
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Parte de la jornada</label
+              >
+              <select
+                [ngModel]="exceptionForm.partIndex"
+                (ngModelChange)="exceptionForm.partIndex = $event; onExceptionPartChange()"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option [ngValue]="0">Toda la jornada</option>
+                @for (shift of getExceptionReferenceShifts(); track $index; let i = $index) {
+                  <option [ngValue]="i + 1">
+                    Turno {{ i + 1 }} ({{ shift.start }}:00 a {{ shift.end }}:00)
+                  </option>
+                }
+              </select>
+            </div>
           }
-        </div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-gray-700">Horario que cumple</label>
+              <button
+                (click)="addExceptionShift()"
+                class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+              >
+                + Agregar turno
+              </button>
+            </div>
+            <div class="space-y-2">
+              @for (shift of exceptionForm.shifts; track $index; let i = $index) {
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    [(ngModel)]="shift.start"
+                    min="6"
+                    max="23"
+                    class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span class="text-gray-500">a</span>
+                  <input
+                    type="number"
+                    [(ngModel)]="shift.end"
+                    min="7"
+                    max="36"
+                    class="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                  @if (exceptionForm.shifts.length > 1) {
+                    <button
+                      (click)="removeExceptionShift(i)"
+                      class="text-red-500 hover:text-red-700"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="text-xs text-gray-600 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+            El empleado mantiene su rol y sus horarios habituales: hace su jornada en su día de
+            franco original y descansa el nuevo día. No cubre a nadie.
+          </div>
+        }
+      </div>
+      <div class="flex justify-end gap-3 mt-6">
+        <button
+          (click)="closeExceptionModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          (click)="submitExceptionForm()"
+          class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors"
+        >
+          {{ exceptionEditing() ? 'Guardar' : 'Crear' }}
+        </button>
       </div>
     </div>
-    <div class="flex justify-end gap-3 mt-6">
-      <button (click)="closeExceptionModal()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="submitExceptionForm()"
-        class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors">{{ exceptionEditing()
-        ? 'Guardar' : 'Crear' }}</button>
-    </div>
   </div>
-</div>
 }
 
 @if (showStatusModal()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  @if (statusAction() === 'cambio_sucursal') {
-  <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">Cambio de Sucursal - {{ statusEmployee()?.name }}</h3>
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal de Destino</label>
-        <select [(ngModel)]="newBranchId"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option value="">Seleccionar sucursal...</option>
-          @for (branch of authService.managerBranches(); track branch.id) {
-          @if (branch.id !== authService.selectedBranch()?.id) {
-          <option [value]="branch.id">{{ branch.name }}</option>
-          }
-          }
-        </select>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    @if (statusAction() === 'cambio_sucursal') {
+      <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+          Cambio de Sucursal - {{ statusEmployee()?.name }}
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sucursal de Destino</label>
+            <select
+              [(ngModel)]="newBranchId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">Seleccionar sucursal...</option>
+              @for (branch of authService.managerBranches(); track branch.id) {
+                @if (branch.id !== authService.selectedBranch()?.id) {
+                  <option [value]="branch.id">{{ branch.name }}</option>
+                }
+              }
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button
+            (click)="closeStatusModal()"
+            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            (click)="confirmStatusChange()"
+            class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors"
+          >
+            Confirmar Cambio
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="flex justify-end gap-3 mt-6">
-      <button (click)="closeStatusModal()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="confirmStatusChange()"
-        class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors">Confirmar
-        Cambio</button>
-    </div>
+    } @else {
+      <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Confirmar {{ statusAction() === 'renuncia' ? 'Renuncia' : 'Despido' }}
+        </h3>
+        <p class="text-gray-600 mb-6">
+          ¿Estás seguro de que querés registrar la {{ statusAction() }} de
+          <strong>{{ statusEmployee()?.name }}</strong
+          >? El empleado será dado de baja.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            (click)="closeStatusModal()"
+            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            (click)="confirmStatusChange()"
+            class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    }
   </div>
-  } @else {
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-    <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar {{ statusAction() === 'renuncia' ? 'Renuncia' :
-      'Despido' }}</h3>
-    <p class="text-gray-600 mb-6">¿Estás seguro de que querés registrar la {{ statusAction() }} de <strong>{{
-        statusEmployee()?.name }}</strong>? El empleado será dado de baja.</p>
-    <div class="flex justify-end gap-3">
-      <button (click)="closeStatusModal()"
-        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-      <button (click)="confirmStatusChange()"
-        class="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors">Confirmar</button>
-    </div>
-  </div>
-  }
-</div>
 }
 
 @if (showSignOutConfirm()) {
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+          <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900">Cerrar Sesión</h3>
       </div>
-      <h3 class="text-lg font-semibold text-gray-900">Cerrar Sesión</h3>
-    </div>
-    <p class="text-gray-600 mb-6">¿Estás seguro de que querés cerrar la sesión?</p>
-    <div class="flex justify-end gap-2">
-      <button (click)="cancelSignOut()"
-        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium">
-        Cancelar
-      </button>
-      <button (click)="confirmSignOut()"
-        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
-        Cerrar Sesión
-      </button>
+      <p class="text-gray-600 mb-6">¿Estás seguro de que querés cerrar la sesión?</p>
+      <div class="flex justify-end gap-2">
+        <button
+          (click)="cancelSignOut()"
+          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+        >
+          Cancelar
+        </button>
+        <button
+          (click)="confirmSignOut()"
+          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+        >
+          Cerrar Sesión
+        </button>
+      </div>
     </div>
   </div>
-</div>
 }

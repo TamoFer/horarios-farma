@@ -15,6 +15,7 @@ export class EmployeeModalComponent {
   dropHour = input.required<number>();
   editingFunction = input<JobFunction | null>(null);
   editingShifts = input<ShiftBlock[] | null>(null);
+  suggestedFunction = input<JobFunction | null>(null);
 
   save = output<{ function: JobFunction; shifts: ShiftBlock[] }>();
   cancel = output<void>();
@@ -34,7 +35,9 @@ export class EmployeeModalComponent {
       this.selectedFunction = editFunc;
       this.shifts = editShifts.map(s => ({ start: s.start, end: s.end }));
     } else {
-      this.selectedFunction = emp.defaultFunction;
+      const suggested = this.suggestedFunction();
+      this.selectedFunction =
+        suggested && emp.functions.includes(suggested) ? suggested : emp.defaultFunction;
       this.shifts = emp.shifts.map(s => ({ start: s.start, end: s.end }));
     }
 

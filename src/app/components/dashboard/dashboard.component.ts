@@ -1,4 +1,13 @@
-import { Component, signal, output, ElementRef, ViewChild, inject, computed, effect } from '@angular/core';
+import {
+  Component,
+  signal,
+  output,
+  ElementRef,
+  ViewChild,
+  inject,
+  computed,
+  effect,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,6 +22,7 @@ import {
   ScheduleHistory,
   WORK_HOURS,
   AREAS,
+  AREA_TO_FUNCTION,
   FUNCTION_TO_AREA,
   AREA_LABELS,
   FUNCTION_LABELS,
@@ -24,6 +34,9 @@ import {
   EmployeeException,
   EmployeeExceptionDraft,
   ExceptionType,
+  Incident,
+  IncidentType,
+  INCIDENT_LABELS,
   exceptionAppliesOn,
   normalizeShiftBlocks,
 } from '../../models/employee.model';
@@ -33,6 +46,7 @@ import { ExceptionService } from '../../services/exception.service';
 import { EmployeeModalComponent } from '../employee-modal/employee-modal.component';
 import { VacationModalComponent } from '../vacation-modal/vacation-modal.component';
 import { DynamicToastService } from 'ngx-dynamic-toast';
+import { ConfirmService } from '../../services/confirm.service';
 
 interface PlacedEmployee {
   id: number;
@@ -74,12 +88,13 @@ export class DashboardComponent {
   private historyService = inject(HistoryService);
   exceptionService = inject(ExceptionService);
   private toastService = inject(DynamicToastService);
+  private confirmService = inject(ConfirmService);
 
   employees = computed(() => {
     const branch = this.authService.selectedBranch();
     if (!branch) return [];
     return [...this.authService.getEmployeesForBranch(branch.id)].sort((a, b) =>
-      this.surnameOf(a.name).localeCompare(this.surnameOf(b.name), 'es')
+      this.surnameOf(a.name).localeCompare(this.surnameOf(b.name), 'es'),
     );
   });
 
@@ -110,10 +125,13 @@ export class DashboardComponent {
   modalEditingId = signal<number | null>(null);
   modalEditingFunction = signal<JobFunction | null>(null);
   modalEditingShifts = signal<ShiftBlock[] | null>(null);
+  modalSuggestedFunction = signal<JobFunction | null>(null);
 
   draggedEmployee = signal<Employee | null>(null);
   sidebarVisible = signal(true);
-  currentSection = signal<'horario' | 'empleados' | 'vacaciones' | 'historial' | 'cambios'>('horario');
+  currentSection = signal<'horario' | 'empleados' | 'vacaciones' | 'historial' | 'cambios'>(
+    'horario',
+  );
 
   showEmployeeModal = signal(false);
   editingEmployee = signal<Employee | null>(null);
@@ -123,7 +141,7 @@ export class DashboardComponent {
     defaultFunction: 'vendedor' as JobFunction,
     nroVendedor: null as number | null,
     dayOff: 'domingo' as DayOfWeek,
-    shifts: [{ start: 9, end: 18 } as ShiftBlock]
+    shifts: [{ start: 9, end: 18 } as ShiftBlock],
   };
 
   showDeleteConfirm = signal(false);
@@ -140,13 +158,11 @@ export class DashboardComponent {
   vacationForm = {
     employeeId: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
   };
 
   showHistoryPreviewModal = signal(false);
   historyPreviewEntry = signal<ScheduleHistory | null>(null);
-  showHistoryDeleteConfirm = signal(false);
-  historyToDelete = signal<ScheduleHistory | null>(null);
 
   showNightShiftModal = signal(false);
   nightShiftEmployee = signal<Employee | null>(null);
@@ -163,14 +179,37 @@ export class DashboardComponent {
     function: 'vendedor' as JobFunction,
     coveredEmployeeId: null as number | null,
     partIndex: 0,
-    shifts: [{ start: 9, end: 18 }] as ShiftBlock[]
+    francoAdvanced: false,
+    francoMode: 'rango' as 'rango' | 'semanas',
+    francoWeeks: 1,
+    shifts: [{ start: 9, end: 18 }] as ShiftBlock[],
   };
 
-  availableFunctions: JobFunction[] = ['cajero', 'vendedor', 'perfumera', 'salon', 'inventario', 'limpieza', 'atencion_bot', 'encargado', 'nochero', 'seguridad'];
+  availableFunctions: JobFunction[] = [
+    'cajero',
+    'vendedor',
+    'perfumera',
+    'salon',
+    'inventario',
+    'limpieza',
+    'atencion_bot',
+    'encargado',
+    'nochero',
+    'seguridad',
+  ];
   allDays: DayOfWeek[] = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+  incidentLabels = INCIDENT_LABELS;
+  incidentForm = {
+    employeeId: null as number | null,
+    type: 'falta' as IncidentType,
+    time: 18 as number | null,
+    note: '',
+  };
 
   employeeSearchText = signal('');
-  employeeSortField = signal<'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'>('name');
+  employeeSortField = signal<'name' | 'functions' | 'defaultFunction' | 'dayOff' | 'nroVendedor'>(
+    'name',
+  );
   employeeSortDirection = signal<'asc' | 'desc'>('asc');
   employeeSortApplied = signal(false);
 
@@ -188,11 +227,12 @@ export class DashboardComponent {
 
     if (this.employeeSearchText().trim()) {
       const search = this.employeeSearchText().toLowerCase();
-      result = result.filter(emp =>
-        emp.name.toLowerCase().includes(search) ||
-        emp.functions.some(f => f.toLowerCase().includes(search)) ||
-        this.functionLabels[emp.defaultFunction].toLowerCase().includes(search) ||
-        this.dayLabels[emp.dayOff].toLowerCase().includes(search)
+      result = result.filter(
+        (emp) =>
+          emp.name.toLowerCase().includes(search) ||
+          emp.functions.some((f) => f.toLowerCase().includes(search)) ||
+          this.functionLabels[emp.defaultFunction].toLowerCase().includes(search) ||
+          this.dayLabels[emp.dayOff].toLowerCase().includes(search),
       );
     }
 
@@ -230,11 +270,9 @@ export class DashboardComponent {
     return result;
   });
 
-  onEmployeeSearchChange(): void {
-  }
+  onEmployeeSearchChange(): void {}
 
-  onEmployeeSearch(): void {
-  }
+  onEmployeeSearch(): void {}
 
   clearEmployeeSearch(): void {
     this.employeeSearchText.set('');
@@ -243,11 +281,12 @@ export class DashboardComponent {
   filteredVacations = computed(() => {
     const search = this.vacationSearchText().toLowerCase().trim();
     if (!search) return this.vacations();
-    return this.vacations().filter(v =>
-      (v.employeeName || '').toLowerCase().includes(search) ||
-      v.startDate.includes(search) ||
-      v.endDate.includes(search) ||
-      v.estado.toLowerCase().includes(search)
+    return this.vacations().filter(
+      (v) =>
+        (v.employeeName || '').toLowerCase().includes(search) ||
+        v.startDate.includes(search) ||
+        v.endDate.includes(search) ||
+        v.estado.toLowerCase().includes(search),
     );
   });
 
@@ -262,16 +301,17 @@ export class DashboardComponent {
     const searchDate = this.historySearchDate();
 
     if (searchText) {
-      result = result.filter(entry =>
-        entry.date.toLowerCase().includes(searchText) ||
-        entry.scheduleDate.includes(searchText) ||
-        entry.branchId.toLowerCase().includes(searchText) ||
-        entry.placedEmployees.some(p => p.employeeName.toLowerCase().includes(searchText))
+      result = result.filter(
+        (entry) =>
+          entry.date.toLowerCase().includes(searchText) ||
+          entry.scheduleDate.includes(searchText) ||
+          entry.branchId.toLowerCase().includes(searchText) ||
+          entry.placedEmployees.some((p) => p.employeeName.toLowerCase().includes(searchText)),
       );
     }
 
     if (searchDate) {
-      result = result.filter(entry => entry.scheduleDate === searchDate);
+      result = result.filter((entry) => entry.scheduleDate === searchDate);
     }
 
     return result;
@@ -339,11 +379,11 @@ export class DashboardComponent {
           defaultFunction: p.function,
           weeklyHours: 40,
           dayOff: 'domingo' as DayOfWeek,
-          shifts: p.shifts
+          shifts: p.shifts,
         },
         area: p.area,
         function: p.function,
-        shifts: p.shifts
+        shifts: p.shifts,
       }));
       this.placedEmployees.set(placed);
       this.rebuildSchedules();
@@ -354,13 +394,14 @@ export class DashboardComponent {
     const branch = this.authService.selectedBranch();
     if (!branch) return;
 
-    const { data: empleados } = await this.authService.getSupabase()
+    const { data: empleados } = await this.authService
+      .getSupabase()
       .from('empleados')
       .select('id, nombre')
       .eq('branch_id', branch.id);
 
     const employeeMap = new Map<number, string>();
-    empleados?.forEach(e => employeeMap.set(e.id, e.nombre));
+    empleados?.forEach((e) => employeeMap.set(e.id, e.nombre));
 
     const employeeIds = Array.from(employeeMap.keys());
     if (employeeIds.length === 0) {
@@ -368,7 +409,8 @@ export class DashboardComponent {
       return;
     }
 
-    const { data } = await this.authService.getSupabase()
+    const { data } = await this.authService
+      .getSupabase()
       .from('vacaciones')
       .select('*')
       .in('empleado_id', employeeIds);
@@ -380,7 +422,7 @@ export class DashboardComponent {
         startDate: v.comienza,
         endDate: v.finaliza,
         employeeName: employeeMap.get(v.empleado_id) || 'Desconocido',
-        estado: v.estado || 'temporal'
+        estado: v.estado || 'temporal',
       }));
       this.vacations.set(vacationsWithNames);
     }
@@ -414,7 +456,9 @@ export class DashboardComponent {
   async confirmSignOut(): Promise<void> {
     this.showSignOutConfirm.set(false);
     await this.authService.signOut();
-    this.toastService.success('Sesión cerrada', { description: 'Hasta luego. La sesión se cerró correctamente.' });
+    this.toastService.success('Sesión cerrada', {
+      description: 'Hasta luego. La sesión se cerró correctamente.',
+    });
     this.router.navigate(['/login']);
   }
 
@@ -423,8 +467,9 @@ export class DashboardComponent {
   }
 
   async deleteEmployee(id: number): Promise<void> {
-    const employee = this.allEmployees.find(e => e.id === id);
-    await this.authService.getSupabase()
+    const employee = this.allEmployees.find((e) => e.id === id);
+    await this.authService
+      .getSupabase()
       .from('empleados')
       .update({ trabajando: false })
       .eq('id', id);
@@ -437,7 +482,8 @@ export class DashboardComponent {
     if (!branch) return;
 
     if (editing) {
-      await this.authService.getSupabase()
+      await this.authService
+        .getSupabase()
         .from('empleados')
         .update({
           nombre: employee.name,
@@ -445,11 +491,12 @@ export class DashboardComponent {
           puesto_contratado: employee.defaultFunction,
           jornada_semanal: employee.weeklyHours,
           franco: employee.dayOff,
-          carga_horaria: JSON.stringify(employee.shifts)
+          carga_horaria: JSON.stringify(employee.shifts),
         })
         .eq('id', editing.id);
     } else {
-      await this.authService.getSupabase()
+      await this.authService
+        .getSupabase()
         .from('empleados')
         .insert({
           branch_id: branch.id,
@@ -458,31 +505,39 @@ export class DashboardComponent {
           puesto_contratado: employee.defaultFunction,
           jornada_semanal: employee.weeklyHours,
           franco: employee.dayOff,
-          carga_horaria: JSON.stringify(employee.shifts)
+          carga_horaria: JSON.stringify(employee.shifts),
         });
     }
     await this.authService.refreshManagerData();
     this.closeEmployeeModal();
   }
 
+  confirmDeleteVacation(vacation: Vacation): void {
+    this.confirmService.confirmDelete(
+      `la vacación de ${this.getEmployeeNameById(vacation.employeeId)}`,
+      () => this.deleteVacation(vacation.id),
+    );
+  }
+
   async deleteVacation(id: number): Promise<void> {
-    await this.authService.getSupabase()
-      .from('vacaciones')
-      .delete()
-      .eq('id', id);
+    await this.authService.getSupabase().from('vacaciones').delete().eq('id', id);
     await this.loadVacations();
-    this.toastService.success('Vacación eliminada', { description: 'La vacación ha sido eliminada correctamente' });
+    this.toastService.success('Vacación eliminada', {
+      description: 'La vacación ha sido eliminada correctamente',
+    });
   }
 
   async confirmVacation(id: number): Promise<void> {
-    await this.authService.getSupabase()
+    await this.authService
+      .getSupabase()
       .from('vacaciones')
       .update({ estado: 'confirmada' })
       .eq('id', id);
     await this.loadVacations();
-    this.toastService.success('Vacación confirmada', { description: 'La vacación ha sido confirmada correctamente' });
+    this.toastService.success('Vacación confirmada', {
+      description: 'La vacación ha sido confirmada correctamente',
+    });
   }
-
 
   editingVacation = signal<Vacation | null>(null);
 
@@ -493,7 +548,7 @@ export class DashboardComponent {
       defaultFunction: 'vendedor',
       nroVendedor: null,
       dayOff: 'domingo',
-      shifts: [{ start: 9, end: 18 }]
+      shifts: [{ start: 9, end: 18 }],
     };
     this.editingEmployee.set(null);
     this.showEmployeeModal.set(true);
@@ -506,7 +561,7 @@ export class DashboardComponent {
       defaultFunction: employee.defaultFunction,
       nroVendedor: (employee as any).nro_vendedor || null,
       dayOff: employee.dayOff,
-      shifts: employee.shifts.map(s => ({ ...s }))
+      shifts: employee.shifts.map((s) => ({ ...s })),
     };
     this.editingEmployee.set(employee);
     this.showEmployeeModal.set(true);
@@ -552,11 +607,12 @@ export class DashboardComponent {
       franco: this.employeeForm.dayOff,
       carga_horaria: JSON.stringify(shifts),
       nro_vendedor: this.employeeForm.nroVendedor,
-      trabajando: true
+      trabajando: true,
     };
 
     if (this.editingEmployee()) {
-      const { error } = await this.authService.getSupabase()
+      const { error } = await this.authService
+        .getSupabase()
         .from('empleados')
         .update(empData)
         .eq('id', this.editingEmployee()!.id);
@@ -564,17 +620,22 @@ export class DashboardComponent {
       if (error) {
         this.toastService.error('Error', { description: 'No se pudo actualizar el empleado' });
       } else {
-        this.toastService.success('Empleado actualizado', { description: 'Los cambios han sido guardados correctamente' });
+        this.toastService.success('Empleado actualizado', {
+          description: 'Los cambios han sido guardados correctamente',
+        });
       }
     } else {
-      const { error } = await this.authService.getSupabase()
+      const { error } = await this.authService
+        .getSupabase()
         .from('empleados')
         .insert({ ...empData, branch_id: branch.id });
 
       if (error) {
         this.toastService.error('Error', { description: 'No se pudo crear el empleado' });
       } else {
-        this.toastService.success('Empleado creado', { description: `${this.employeeForm.name} ha sido agregado a la sucursal` });
+        this.toastService.success('Empleado creado', {
+          description: `${this.employeeForm.name} ha sido agregado a la sucursal`,
+        });
       }
     }
 
@@ -583,16 +644,24 @@ export class DashboardComponent {
   }
 
   getExceptionShiftsText(exc: EmployeeException): string {
+    return this.formatShiftsText(exc.shifts);
+  }
+
+  formatShiftsText(shifts: ShiftBlock[]): string {
     const fmt = (h: number) => `${h >= 24 ? h - 24 : h}:00`;
-    return exc.shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
+    return shifts.map((s) => `${fmt(s.start)}-${fmt(s.end)}`).join(' / ');
   }
 
   getFijas(): EmployeeException[] {
     return this.exceptionService.exceptions().filter((e) => e.type === 'fija');
   }
 
-  getEspontaneas(): EmployeeException[] {
-    return this.exceptionService.exceptions().filter((e) => e.type === 'espontanea');
+  /** Sección unificada: espontáneas (cubren rol/horario) y cambios de franco (mueven el descanso). */
+  getEspontaneasYFrancos(): EmployeeException[] {
+    return this.exceptionService
+      .exceptions()
+      .filter((e) => e.type === 'espontanea' || e.type === 'franco')
+      .sort((a, b) => (a.type === 'espontanea' ? 0 : 1) - (b.type === 'espontanea' ? 0 : 1));
   }
 
   getEmployeeExceptions(employeeId: number): EmployeeException[] {
@@ -611,16 +680,20 @@ export class DashboardComponent {
   openNewExceptionModal(type: ExceptionType, employee?: Employee): void {
     this.exceptionEditing.set(null);
     this.exceptionLockedEmployeeId.set(employee?.id ?? null);
+    const [weekStart, weekEnd] = this.getScheduleWeekRange();
     this.exceptionForm = {
       employeeId: employee?.id ?? null,
       type,
       dayOfWeek: 'lunes',
-      startDate: this.scheduleDate(),
-      endDate: this.scheduleDate(),
+      startDate: type === 'franco' ? weekStart : this.scheduleDate(),
+      endDate: type === 'franco' ? weekEnd : this.scheduleDate(),
       function: employee?.defaultFunction ?? 'vendedor',
       coveredEmployeeId: null,
       partIndex: 0,
-      shifts: employee ? employee.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
+      francoAdvanced: false,
+      francoMode: 'rango',
+      francoWeeks: 1,
+      shifts: employee ? employee.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }],
     };
     this.showExceptionModal.set(true);
   }
@@ -637,7 +710,10 @@ export class DashboardComponent {
       function: exc.function,
       coveredEmployeeId: exc.coveredEmployeeId,
       partIndex: 0,
-      shifts: exc.shifts.length > 0 ? exc.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }]
+      francoAdvanced: exc.type === 'franco' && !!exc.startDate && !!exc.endDate,
+      francoMode: 'rango',
+      francoWeeks: 1,
+      shifts: exc.shifts.length > 0 ? exc.shifts.map((s) => ({ ...s })) : [{ start: 9, end: 18 }],
     };
     this.showExceptionModal.set(true);
   }
@@ -691,6 +767,24 @@ export class DashboardComponent {
     this.exceptionLockedEmployeeId.set(null);
   }
 
+  private exceptionErrorDetail(): string {
+    const err = this.exceptionService.lastError();
+    if (!err) return '';
+    if (/check constraint|invalid input value/i.test(err)) {
+      return ': la base de datos todavía no acepta el tipo "franco". Ejecutá supabase/migrations/20261011_excepciones_tipo_franco.sql en el SQL Editor de Supabase.';
+    }
+    return `: ${err}`;
+  }
+
+  private incidentErrorDetail(): string {
+    const err = this.historyService.lastError();
+    if (!err) return '';
+    if (/incidencias.*column|column.*incidencias/i.test(err)) {
+      return ': la base de datos todavía no tiene la columna "incidencias". Ejecutá supabase/migrations/20261017_historial_incidencias.sql en el SQL Editor de Supabase.';
+    }
+    return `: ${err}`;
+  }
+
   async submitExceptionForm(): Promise<void> {
     const form = this.exceptionForm;
     if (form.employeeId === null) {
@@ -698,17 +792,107 @@ export class DashboardComponent {
       return;
     }
     const emp = this.allEmployees.find((e) => e.id === form.employeeId);
-    if (!emp || !emp.functions.includes(form.function)) {
-      this.toastService.error('Rol inválido', { description: 'El empleado no tiene esa función cargada' });
+    if (!emp) {
+      this.toastService.error('Faltan datos', { description: 'Elegí el empleado que cubre' });
       return;
     }
-    if (form.type === 'espontanea' && (!form.startDate || !form.endDate || form.endDate < form.startDate)) {
-      this.toastService.error('Fechas inválidas', { description: 'Rango de fechas de la excepción incompleto' });
+    const editing = this.exceptionEditing();
+
+    if (form.type === 'franco') {
+      // Vigencia del cambio: por defecto 1 semana (la del día que se está viendo);
+      // avanzado: rango de fechas o N semanas a partir de esa misma semana.
+      let start: string;
+      let end: string;
+
+      if (!form.francoAdvanced) {
+        [start, end] = this.getScheduleWeekRange();
+      } else if (form.francoMode === 'rango') {
+        start = (form.startDate || '').split('T')[0];
+        end = (form.endDate || '').split('T')[0];
+        if (!start || !end || end < start) {
+          this.toastService.error('Fechas inválidas', {
+            description: 'El rango de fechas del cambio de franco está incompleto',
+          });
+          return;
+        }
+      } else {
+        const weeks = Math.floor(Number(form.francoWeeks));
+        if (!Number.isFinite(weeks) || weeks < 1 || weeks > 52) {
+          this.toastService.error('Semanas inválidas', {
+            description: 'La cantidad de semanas tiene que estar entre 1 y 52',
+          });
+          return;
+        }
+        [start, end] = this.getScheduleWeekRange(weeks);
+      }
+
+      const overlapping = this.exceptionService
+        .exceptions()
+        .find(
+          (x) =>
+            x.type === 'franco' &&
+            x.employeeId === emp.id &&
+            x.id !== editing?.id &&
+            this.francoRangesOverlap(x, start, end),
+        );
+      if (overlapping) {
+        this.toastService.error('Cambio de franco superpuesto', {
+          description: `${emp.name.split(' ')[0]} ya tiene un cambio de franco vigente en esas fechas (${this.getFrancoVigencia(overlapping)}). Editá o eliminá ese cambio.`,
+        });
+        return;
+      }
+      if (form.dayOfWeek === emp.dayOff) {
+        this.toastService.error('Sin cambio', { description: 'Ese ya es su día de franco' });
+        return;
+      }
+      const francoDraft: EmployeeExceptionDraft = {
+        type: 'franco',
+        dayOfWeek: form.dayOfWeek,
+        startDate: start,
+        endDate: end,
+        function: emp.defaultFunction,
+        shifts: [],
+        coveredEmployeeId: null,
+      };
+      const francoOk = editing
+        ? await this.exceptionService.update(editing.id, { ...francoDraft, employeeId: emp.id })
+        : await this.exceptionService.create({ ...francoDraft, employeeId: emp.id });
+      if (francoOk) {
+        this.toastService.success(
+          editing ? 'Cambio de franco actualizado' : 'Cambio de franco creado',
+          {
+            description: `Su nuevo franco es el ${this.dayLabels[form.dayOfWeek]} del ${this.formatShortDate(start)} al ${this.formatShortDate(end)}; el ${this.dayLabels[emp.dayOff]} trabaja su horario habitual`,
+          },
+        );
+        this.closeExceptionModal();
+      } else {
+        this.toastService.error('Error', {
+          description: `No se pudo guardar el cambio de franco${this.exceptionErrorDetail()}`,
+        });
+      }
+      return;
+    }
+
+    if (!emp.functions.includes(form.function)) {
+      this.toastService.error('Rol inválido', {
+        description: 'El empleado no tiene esa función cargada',
+      });
+      return;
+    }
+    if (
+      form.type === 'espontanea' &&
+      (!form.startDate || !form.endDate || form.endDate < form.startDate)
+    ) {
+      this.toastService.error('Fechas inválidas', {
+        description: 'Rango de fechas de la excepción incompleto',
+      });
       return;
     }
     const shifts = normalizeShiftBlocks(form.shifts);
     if (shifts.length === 0) {
-      this.toastService.error('Horario inválido', { description: 'Agregá al menos un horario válido' });
+      this.toastService.error('Horario inválido', {
+        description: 'Agregá al menos un horario válido',
+      });
       return;
     }
 
@@ -719,30 +903,115 @@ export class DashboardComponent {
       endDate: form.type === 'espontanea' ? form.endDate : null,
       function: form.function,
       shifts,
-      coveredEmployeeId: form.coveredEmployeeId
+      coveredEmployeeId: form.coveredEmployeeId,
     };
 
-    const editing = this.exceptionEditing();
     const ok = editing
       ? await this.exceptionService.update(editing.id, { ...draft, employeeId: form.employeeId })
       : await this.exceptionService.create({ ...draft, employeeId: form.employeeId });
 
     if (ok) {
       this.toastService.success(editing ? 'Excepción actualizada' : 'Excepción creada', {
-        description: 'La excepción se guardó correctamente'
+        description: 'La excepción se guardó correctamente',
       });
       this.closeExceptionModal();
     } else {
-      this.toastService.error('Error', { description: 'No se pudo guardar la excepción' });
+      this.toastService.error('Error', {
+        description: `No se pudo guardar la excepción${this.exceptionErrorDetail()}`,
+      });
     }
+  }
+
+  confirmDeleteException(exc: EmployeeException): void {
+    this.confirmService.confirmDelete(
+      `la excepción de ${this.getEmployeeNameById(exc.employeeId)}`,
+      () => this.deleteException(exc.id),
+    );
   }
 
   async deleteException(id: number): Promise<void> {
     const ok = await this.exceptionService.remove(id);
     if (ok) {
-      this.toastService.success('Excepción eliminada', { description: 'La excepción se eliminó correctamente' });
+      this.toastService.success('Excepción eliminada', {
+        description: 'La excepción se eliminó correctamente',
+      });
     } else {
-      this.toastService.error('Error', { description: 'No se pudo eliminar la excepción' });
+      this.toastService.error('Error', {
+        description: `No se pudo eliminar la excepción${this.exceptionErrorDetail()}`,
+      });
+    }
+  }
+
+  getIncidentsForScheduleDate(): Incident[] {
+    const entry = this.historyService.getByDate(this.scheduleDate());
+    return entry?.incidents ?? [];
+  }
+
+  getIncidentsSummary(entry: ScheduleHistory): string {
+    return (entry.incidents ?? [])
+      .map((i) =>
+        i.type === 'falta'
+          ? `${i.employeeName} faltó`
+          : `${i.employeeName} se retiró antes${i.time !== null ? ` a las ${this.formatHour(i.time)}` : ''}`,
+      )
+      .join('; ');
+  }
+
+  async submitIncidentForm(): Promise<void> {
+    const employeeId = this.incidentForm.employeeId;
+    if (employeeId === null) {
+      this.toastService.error('Faltan datos', {
+        description: 'Elegí el empleado que falto o se retiró antes',
+      });
+      return;
+    }
+    if (!this.historyService.hasScheduleForDate(this.scheduleDate())) {
+      this.toastService.error('Sin horario guardado', {
+        description: 'Guardá primero el horario del día para poder registrar incidencias',
+      });
+      return;
+    }
+
+    const incident: Incident = {
+      id: crypto.randomUUID(),
+      employeeId,
+      employeeName: this.getEmployeeNameById(employeeId),
+      type: this.incidentForm.type,
+      time: this.incidentForm.type === 'retiro_temprano' ? this.incidentForm.time : null,
+      note: this.incidentForm.note.trim() || null,
+    };
+
+    const ok = await this.historyService.addIncident(this.scheduleDate(), incident);
+    if (ok) {
+      this.toastService.success('Incidencia registrada', {
+        description: `Se asentó en el horario del ${this.scheduleDate()} que ${incident.employeeName} ${
+          incident.type === 'falta' ? 'faltó' : 'se retiró antes'
+        }`,
+      });
+      this.incidentForm = { employeeId: null, type: 'falta', time: 18, note: '' };
+    } else {
+      this.toastService.error('Error', {
+        description: `No se pudo registrar la incidencia${this.incidentErrorDetail()}`,
+      });
+    }
+  }
+
+  confirmDeleteIncident(incident: Incident): void {
+    this.confirmService.confirmDelete(`la incidencia de ${incident.employeeName}`, () =>
+      this.deleteIncident(incident),
+    );
+  }
+
+  async deleteIncident(incident: Incident): Promise<void> {
+    const ok = await this.historyService.removeIncident(this.scheduleDate(), incident.id);
+    if (ok) {
+      this.toastService.success('Incidencia eliminada', {
+        description: 'La incidencia se eliminó correctamente',
+      });
+    } else {
+      this.toastService.error('Error', {
+        description: `No se pudo eliminar la incidencia${this.incidentErrorDetail()}`,
+      });
     }
   }
 
@@ -755,7 +1024,7 @@ export class DashboardComponent {
     this.vacationForm = {
       employeeId: vacation.employeeId.toString(),
       startDate: vacation.startDate,
-      endDate: vacation.endDate
+      endDate: vacation.endDate,
     };
     this.editingVacation.set(vacation);
     this.showVacationModal.set(true);
@@ -767,38 +1036,47 @@ export class DashboardComponent {
   }
 
   async submitVacationForm(): Promise<void> {
-    if (!this.vacationForm.employeeId || !this.vacationForm.startDate || !this.vacationForm.endDate) return;
+    if (!this.vacationForm.employeeId || !this.vacationForm.startDate || !this.vacationForm.endDate)
+      return;
 
     const editing = this.editingVacation();
     if (editing) {
-      const { error } = await this.authService.getSupabase()
+      const { error } = await this.authService
+        .getSupabase()
         .from('vacaciones')
         .update({
           empleado_id: parseInt(this.vacationForm.employeeId),
           comienza: this.vacationForm.startDate,
-          finaliza: this.vacationForm.endDate
+          finaliza: this.vacationForm.endDate,
         })
         .eq('id', editing.id);
 
       if (error) {
-        this.toastService.error('Error al actualizar', { description: 'No se pudo actualizar la vacación' });
+        this.toastService.error('Error al actualizar', {
+          description: 'No se pudo actualizar la vacación',
+        });
       } else {
-        this.toastService.success('Vacación actualizada', { description: 'Los cambios han sido guardados correctamente' });
+        this.toastService.success('Vacación actualizada', {
+          description: 'Los cambios han sido guardados correctamente',
+        });
       }
     } else {
-      const { error } = await this.authService.getSupabase()
+      const { error } = await this.authService
+        .getSupabase()
         .from('vacaciones')
         .insert({
           empleado_id: parseInt(this.vacationForm.employeeId),
           comienza: this.vacationForm.startDate,
           finaliza: this.vacationForm.endDate,
-          estado: 'temporal'
+          estado: 'temporal',
         });
 
       if (error) {
         this.toastService.error('Error al crear', { description: 'No se pudo crear la vacación' });
       } else {
-        this.toastService.success('Vacación creada', { description: 'La nueva vacación ha sido agregada' });
+        this.toastService.success('Vacación creada', {
+          description: 'La nueva vacación ha sido agregada',
+        });
       }
     }
 
@@ -841,7 +1119,8 @@ export class DashboardComponent {
     if (action === 'cambio_sucursal') {
       if (!this.newBranchId) return;
 
-      const { error: error1 } = await this.authService.getSupabase()
+      const { error: error1 } = await this.authService
+        .getSupabase()
         .from('ex_empleados')
         .insert({
           nombre: employee.name,
@@ -855,22 +1134,27 @@ export class DashboardComponent {
           sucursal_origen: branch.id,
           fecha_salida: new Date().toISOString().split('T')[0],
           motivo_salida: 'cambio_sucursal',
-          sucursal_destino: this.newBranchId
+          sucursal_destino: this.newBranchId,
         });
 
-      const { error: error2 } = await this.authService.getSupabase()
+      const { error: error2 } = await this.authService
+        .getSupabase()
         .from('empleados')
         .update({ branch_id: this.newBranchId })
         .eq('id', employee.id);
 
       if (error1 || error2) {
-        this.toastService.error('Error', { description: 'No se pudo realizar el cambio de sucursal' });
+        this.toastService.error('Error', {
+          description: 'No se pudo realizar el cambio de sucursal',
+        });
       } else {
-        this.toastService.success('Cambio de sucursal', { description: `${employee.name} ha sido asignado a otra sucursal` });
+        this.toastService.success('Cambio de sucursal', {
+          description: `${employee.name} ha sido asignado a otra sucursal`,
+        });
       }
-
     } else if (action === 'renuncia') {
-      const { error: error1 } = await this.authService.getSupabase()
+      const { error: error1 } = await this.authService
+        .getSupabase()
         .from('ex_empleados')
         .insert({
           nombre: employee.name,
@@ -883,10 +1167,11 @@ export class DashboardComponent {
           branch_id: branch.id,
           sucursal_origen: branch.id,
           fecha_salida: new Date().toISOString().split('T')[0],
-          motivo_salida: 'renuncia'
+          motivo_salida: 'renuncia',
         });
 
-      const { error: error2 } = await this.authService.getSupabase()
+      const { error: error2 } = await this.authService
+        .getSupabase()
         .from('empleados')
         .update({ trabajando: false })
         .eq('id', employee.id);
@@ -894,11 +1179,13 @@ export class DashboardComponent {
       if (error1 || error2) {
         this.toastService.error('Error', { description: 'No se pudo registrar la renuncia' });
       } else {
-        this.toastService.success('Renuncia registrada', { description: `${employee.name} ha sido dado de baja por renuncia` });
+        this.toastService.success('Renuncia registrada', {
+          description: `${employee.name} ha sido dado de baja por renuncia`,
+        });
       }
-
     } else {
-      const { error: error1 } = await this.authService.getSupabase()
+      const { error: error1 } = await this.authService
+        .getSupabase()
         .from('ex_empleados')
         .insert({
           nombre: employee.name,
@@ -911,10 +1198,11 @@ export class DashboardComponent {
           branch_id: branch.id,
           sucursal_origen: branch.id,
           fecha_salida: new Date().toISOString().split('T')[0],
-          motivo_salida: 'despedido'
+          motivo_salida: 'despedido',
         });
 
-      const { error: error2 } = await this.authService.getSupabase()
+      const { error: error2 } = await this.authService
+        .getSupabase()
         .from('empleados')
         .update({ trabajando: false })
         .eq('id', employee.id);
@@ -922,7 +1210,9 @@ export class DashboardComponent {
       if (error1 || error2) {
         this.toastService.error('Error', { description: 'No se pudo registrar el despido' });
       } else {
-        this.toastService.success('Despido registrado', { description: `${employee.name} ha sido dado de baja` });
+        this.toastService.success('Despido registrado', {
+          description: `${employee.name} ha sido dado de baja`,
+        });
       }
     }
 
@@ -934,7 +1224,8 @@ export class DashboardComponent {
     const emp = this.employeeToDelete();
     if (!emp) return;
 
-    const { error } = await this.authService.getSupabase()
+    const { error } = await this.authService
+      .getSupabase()
       .from('empleados')
       .update({ trabajando: false })
       .eq('id', emp.id);
@@ -942,7 +1233,9 @@ export class DashboardComponent {
     if (error) {
       this.toastService.error('Error', { description: 'No se pudo eliminar el empleado' });
     } else {
-      this.toastService.success('Empleado eliminado', { description: `${emp.name} ha sido dado de baja` });
+      this.toastService.success('Empleado eliminado', {
+        description: `${emp.name} ha sido dado de baja`,
+      });
     }
 
     await this.authService.refreshEmployeesForCurrentBranch();
@@ -951,7 +1244,7 @@ export class DashboardComponent {
   }
 
   getEmployeeName(employeeId: number): string {
-    const emp = this.allEmployees.find(e => e.id === employeeId);
+    const emp = this.allEmployees.find((e) => e.id === employeeId);
     return emp?.name || 'Desconocido';
   }
 
@@ -973,36 +1266,32 @@ export class DashboardComponent {
   }
 
   confirmDeleteHistory(entry: ScheduleHistory): void {
-    this.historyToDelete.set(entry);
-    this.showHistoryDeleteConfirm.set(true);
-  }
-
-  cancelDeleteHistory(): void {
-    this.historyToDelete.set(null);
-    this.showHistoryDeleteConfirm.set(false);
+    this.confirmService.confirmDelete(`el horario del ${entry.date}`, () =>
+      this.deleteHistoryEntry(entry),
+    );
   }
 
   async finalizeHistoryEntry(entry: ScheduleHistory): Promise<void> {
     const success = await this.historyService.finalizeEntry(entry.id);
     if (success) {
-      this.toastService.success('Horario finalizado', { description: 'El horario ha sido marcado como finalizado' });
+      this.toastService.success('Horario finalizado', {
+        description: 'El horario ha sido marcado como finalizado',
+      });
       await this.historyService.loadFromDatabase();
     } else {
       this.toastService.error('Error', { description: 'No se pudo finalizar el horario' });
     }
   }
 
-  async deleteHistoryEntry(): Promise<void> {
-    const entry = this.historyToDelete();
-    if (!entry) return;
-
+  async deleteHistoryEntry(entry: ScheduleHistory): Promise<void> {
     const success = await this.historyService.deleteEntry(entry.id);
     if (success) {
-      this.toastService.success('Eliminado', { description: 'El horario ha sido eliminado correctamente' });
+      this.toastService.success('Eliminado', {
+        description: 'El horario ha sido eliminado correctamente',
+      });
     } else {
       this.toastService.error('Error', { description: 'No se pudo eliminar el horario' });
     }
-    this.cancelDeleteHistory();
   }
 
   async downloadHistoryPDF(): Promise<void> {
@@ -1028,62 +1317,23 @@ export class DashboardComponent {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 6;
-    const title = `Horario - ${entry.date}`;
+    const title = `Horarios Farmacia - ${entry.date}`;
     const branch = this.authService.selectedBranch();
 
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
     pdf.text(title, pageWidth / 2, margin + 4, { align: 'center' });
-    if (branch) {
-      pdf.setFontSize(9);
-      pdf.text(branch.name, pageWidth / 2, margin + 8, { align: 'center' });
-    }
 
-<<<<<<< HEAD
     const francos = this.getDayOffNamesForDate(
       entry.scheduleDate,
-      entry.placedEmployees.map((p) => p.employeeId)
+      entry.placedEmployees.map((p) => p.employeeId),
     );
 
     const areaLabelWidth = 35;
     const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
     const rowHeight = 6;
     const headerHeight = 7;
-    const startY = margin + 11;
-=======
-    const francolLabelWidth = 50;
-    const francolX = pageWidth - margin - francolLabelWidth;
-    const francolY = margin + 5;
-    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-    const date = new Date(entry.scheduleDate + 'T00:00:00');
-    const dayOfWeek = days[date.getDay()];
-
-    const employees = this.employees();
-    const francolEmployees = employees.filter(emp => emp.dayOff === dayOfWeek);
-
-    const hasFranco = francolEmployees.length > 0;
-    const francolHeight = hasFranco ? 8 + francolEmployees.length * 4 : 0;
-
-    const areaLabelWidth = 40;
-    const hourWidth = (pageWidth - margin * 2 - areaLabelWidth) / this.workHours.length;
-    const rowHeight = 10;
-    const headerHeight = 12;
-    const startY = hasFranco ? margin + 18 + francolHeight : margin + 18;
-
-    if (hasFranco) {
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('FRANCO:', francolX, francolY);
-
-      let yOffset = francolY + 5;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7);
-      francolEmployees.forEach(emp => {
-        pdf.text(emp.name, francolX, yOffset);
-        yOffset += 4;
-      });
-    }
+    const startY = margin + 9;
 
     const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
@@ -1095,11 +1345,11 @@ export class DashboardComponent {
       atencion_bot: [34, 211, 238],
       encargado: [220, 38, 38],
       nochero: [30, 41, 59],
-      seguridad: [20, 184, 166]
+      seguridad: [20, 184, 166],
     };
 
     const drawGridHeader = (): void => {
-    pdf.setFillColor(243, 244, 246);
+      pdf.setFillColor(249, 250, 251);
       pdf.rect(margin, startY, pageWidth - margin * 2, headerHeight, 'F');
 
       pdf.setFontSize(7);
@@ -1107,8 +1357,8 @@ export class DashboardComponent {
       pdf.setTextColor(75, 85, 99);
       pdf.text('Área', margin + 2, startY + 5);
 
-      this.workHours.forEach((hour) => {
-        const x = margin + areaLabelWidth + (hour - 6) * hourWidth;
+      this.workHours.forEach((hour, i) => {
+        const x = margin + areaLabelWidth + i * hourWidth;
         pdf.text(`${hour}:00`, x + hourWidth / 2, startY + 5, { align: 'center' });
       });
     };
@@ -1123,11 +1373,8 @@ export class DashboardComponent {
     let currentY = startY + headerHeight;
 
     areaSchedules.forEach((areaSchedule) => {
-      const hasAnyEmployee = areaSchedule.tracks.some(track => track.length > 0);
-      if (!hasAnyEmployee) return;
-
       const maxTracks = areaSchedule.tracks.length;
-      const areaRowHeight = rowHeight * maxTracks;
+      const areaRowHeight = maxTracks > 0 ? rowHeight * maxTracks : rowHeight;
 
       if (currentY + areaRowHeight > pageHeight - margin - 9) {
         pdf.addPage();
@@ -1159,27 +1406,53 @@ export class DashboardComponent {
           const shiftStart = schedule.shift.start;
           const shiftEnd = schedule.shift.end;
           const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
-          const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
-          const rightX = margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
+          const leftX =
+            margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
+          const rightX =
+            margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
           const color = funcColors[schedule.function];
 
           let name = ((schedule.employee as any).name || '').split(' ')[0];
           if (isNight && shiftEnd > NIGHT_SHIFT_NORMAL_END) {
             name = `${name} - hasta 12:00`;
           }
-          this.drawShiftArrow(pdf, leftX, rightX, trackY, rowHeight, name, color, 6);
+          this.drawShiftArrow(pdf, leftX, rightX, trackY, rowHeight, name, color, 5.5);
         });
       });
 
       currentY += areaRowHeight;
     });
 
+    const vacaciones = this.getVacationNamesForDate(
+      entry.scheduleDate,
+      entry.placedEmployees.map((p) => p.employeeId),
+    );
+    const incidentsText = this.getIncidentsText(entry.incidents, entry.placedEmployees);
+
+    this.drawFooterLabel(pdf, 'Francos', francos, margin, currentY + 7);
+    let footerY = currentY + 12;
+    if (vacaciones) {
+      this.drawFooterLabel(pdf, 'Vacaciones', vacaciones, margin, footerY);
+      footerY += 5;
+    }
+    if (incidentsText) {
+      this.drawFooterLabel(pdf, 'Incidencias', incidentsText, margin, footerY);
+    }
+
     const branchName = branch?.name || 'Sucursal';
     pdf.save(`horario_${branchName}_${entry.scheduleDate}.pdf`);
   }
 
   getCurrentDayOff(): DayOfWeek {
-    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const days: DayOfWeek[] = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+    ];
     const date = new Date(this.scheduleDate() + 'T00:00:00');
     const dayIndex = date.getDay();
     return days[dayIndex];
@@ -1189,16 +1462,17 @@ export class DashboardComponent {
     const dateStr = this.scheduleDate();
     if (this.isEmployeeWorkingViaException(employee.id, dateStr)) return false;
     if (this.isEmployeeRestingViaException(employee.id, dateStr)) return true;
-    return employee.dayOff === this.getCurrentDayOff();
+    // Con un cambio de franco vigente, el día de descanso efectivo es el nuevo día.
+    return this.getEffectiveDayOff(employee, dateStr) === this.getCurrentDayOff();
   }
 
   getPreviewEntriesForArea(entry: ScheduleHistory, area: Area): PlacedEmployeeData[] {
-    return entry.placedEmployees.filter(p => p.area === area);
+    return entry.placedEmployees.filter((p) => p.area === area);
   }
 
   getPreviewCellEntries(entry: ScheduleHistory, area: Area, hour: number): PlacedEmployeeData[] {
-    return entry.placedEmployees.filter(p =>
-      p.area === area && p.shifts.some(s => hour >= s.start && hour < s.end)
+    return entry.placedEmployees.filter(
+      (p) => p.area === area && p.shifts.some((s) => hour >= s.start && hour < s.end),
     );
   }
 
@@ -1217,7 +1491,7 @@ export class DashboardComponent {
       atencion_bot: '#22d3ee',
       encargado: '#dc2626',
       nochero: '#1e293b',
-      seguridad: '#14b8a6'
+      seguridad: '#14b8a6',
     };
     return colors[fn] || '#9ca3af';
   }
@@ -1227,7 +1501,7 @@ export class DashboardComponent {
   }
 
   isDateInHistory(date: string): boolean {
-    return this.historyService.history().some(h => h.scheduleDate === date);
+    return this.historyService.history().some((h) => h.scheduleDate === date);
   }
 
   private isDateInPast(date: string): boolean {
@@ -1238,7 +1512,9 @@ export class DashboardComponent {
   goToToday(): void {
     const today = new Date().toISOString().split('T')[0];
     if (this.isDateInPast(today)) {
-      this.toastService.error('Fecha no disponible', { description: 'No podés editar horarios de días que ya pasaron.' });
+      this.toastService.error('Fecha no disponible', {
+        description: 'No podés editar horarios de días que ya pasaron.',
+      });
       return;
     }
     this.scheduleDate.set(today);
@@ -1250,7 +1526,9 @@ export class DashboardComponent {
     const prevDate = current.toISOString().split('T')[0];
 
     if (this.isDateInPast(prevDate)) {
-      this.toastService.error('Fecha no disponible', { description: 'No podés editar horarios de días que ya pasaron.' });
+      this.toastService.error('Fecha no disponible', {
+        description: 'No podés editar horarios de días que ya pasaron.',
+      });
       return;
     }
 
@@ -1261,7 +1539,7 @@ export class DashboardComponent {
   }
 
   toggleDatePicker(): void {
-    this.showDatePicker.update(v => !v);
+    this.showDatePicker.update((v) => !v);
   }
 
   isEmployeeOnVacation(employeeId: number): boolean {
@@ -1274,9 +1552,91 @@ export class DashboardComponent {
   }
 
   getActiveExceptionsFor(employeeId: number, dateStr: string): EmployeeException[] {
+    // Los cambios de franco no son coberturas: no reemplazan la jornada ni el rol, solo
+    // mueven el día de descanso (se resuelven en getEffectiveDayOff / isEmployeeOnDayOff).
     return this.exceptionService
       .exceptions()
-      .filter((x) => x.employeeId === employeeId && exceptionAppliesOn(x, dateStr));
+      .filter(
+        (x) => x.type !== 'franco' && x.employeeId === employeeId && exceptionAppliesOn(x, dateStr),
+      );
+  }
+
+  /** Cambio de franco vigente para el empleado en la fecha indicada. */
+  getFrancoChangeFor(employeeId: number, dateStr: string): EmployeeException | null {
+    return (
+      this.exceptionService
+        .exceptions()
+        .find(
+          (e) =>
+            e.type === 'franco' && e.employeeId === employeeId && exceptionAppliesOn(e, dateStr),
+        ) ?? null
+    );
+  }
+
+  getEffectiveDayOff(employee: Employee, dateStr: string): DayOfWeek {
+    const change = this.getFrancoChangeFor(employee.id, dateStr);
+    return change?.dayOfWeek ?? employee.dayOff;
+  }
+
+  getFrancoDayLabel(employee: Employee): string {
+    const effective = this.getEffectiveDayOff(employee, this.scheduleDate());
+    if (effective === employee.dayOff) return this.dayLabels[effective];
+    return `${this.dayLabels[effective]} (antes ${this.dayLabels[employee.dayOff]})`;
+  }
+
+  getFrancoOriginalDay(exc: EmployeeException): string {
+    const emp = this.allEmployees.find((e) => e.id === exc.employeeId);
+    return emp ? this.dayLabels[emp.dayOff] : '-';
+  }
+
+  /** Vigencia del cambio de franco para listados ("12/10 al 18/10" o "Permanente"). */
+  getFrancoVigencia(exc: EmployeeException): string {
+    if (!exc.startDate || !exc.endDate) return 'Permanente';
+    return `${this.formatShortDate(exc.startDate)} al ${this.formatShortDate(exc.endDate)}`;
+  }
+
+  /** Rango por defecto (1 semana): lunes a domingo de la semana del día que se está viendo. */
+  getDefaultFrancoRangeLabel(): string {
+    const [start, end] = this.getScheduleWeekRange();
+    return `${this.formatShortDate(start)} al ${this.formatShortDate(end)}`;
+  }
+
+  /** Rango resultante al elegir "X semanas" en el formulario (para el hint del modal). */
+  getFrancoWeeksRangeLabel(): string {
+    const weeks = Math.max(
+      1,
+      Math.min(52, Math.floor(Number(this.exceptionForm.francoWeeks) || 1)),
+    );
+    const [start, end] = this.getScheduleWeekRange(weeks);
+    return `${this.formatShortDate(start)} al ${this.formatShortDate(end)}`;
+  }
+
+  private getScheduleWeekRange(weeks = 1): [string, string] {
+    const date = new Date(this.scheduleDate() + 'T00:00:00');
+    const day = date.getDay(); // 0 = domingo
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diffToMonday);
+    const lastDay = new Date(monday);
+    lastDay.setDate(monday.getDate() + weeks * 7 - 1);
+    return [this.toDateKey(monday), this.toDateKey(lastDay)];
+  }
+
+  private toDateKey(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  private formatShortDate(dateStr: string): string {
+    const [, month, day] = dateStr.split('-');
+    return `${day}/${month}`;
+  }
+
+  /** Dos cambios de franco no pueden estar vigentes al mismo tiempo (se pisan). */
+  private francoRangesOverlap(exc: EmployeeException, start: string, end: string): boolean {
+    const aStart = (exc.startDate || '').split('T')[0];
+    const aEnd = (exc.endDate || '').split('T')[0];
+    if (!aStart || !aEnd) return true; // cambio permanente (sin fechas): choca con todo
+    return aStart <= end && start <= aEnd;
   }
 
   isEmployeeWorkingViaException(employeeId: number, dateStr: string): boolean {
@@ -1286,19 +1646,29 @@ export class DashboardComponent {
   isEmployeeRestingViaException(employeeId: number, dateStr: string): boolean {
     return this.exceptionService
       .exceptions()
-      .some((x) => x.type === 'espontanea' && x.coveredEmployeeId === employeeId && exceptionAppliesOn(x, dateStr));
+      .some(
+        (x) =>
+          x.type === 'espontanea' &&
+          x.coveredEmployeeId === employeeId &&
+          exceptionAppliesOn(x, dateStr),
+      );
   }
 
   getExceptionBadge(employee: Employee): string | null {
+    const parts: string[] = [];
+    const franco = this.getFrancoChangeFor(employee.id, this.scheduleDate());
+    if (franco?.dayOfWeek) {
+      parts.push(`Franco → ${this.dayLabels[franco.dayOfWeek]}`);
+    }
     const excs = this.getActiveExceptionsFor(employee.id, this.scheduleDate());
-    if (excs.length === 0) return null;
-    return excs
-      .map((exc) => {
-        const covered = exc.coveredEmployeeId ? this.allEmployees.find((e) => e.id === exc.coveredEmployeeId) : null;
-        const fn = this.functionLabels[exc.function];
-        return covered ? `${fn} · cubre a ${covered.name.split(' ')[0]}` : fn;
-      })
-      .join(' · ');
+    excs.forEach((exc) => {
+      const covered = exc.coveredEmployeeId
+        ? this.allEmployees.find((e) => e.id === exc.coveredEmployeeId)
+        : null;
+      const fn = this.functionLabels[exc.function];
+      parts.push(covered ? `${fn} · cubre a ${covered.name.split(' ')[0]}` : fn);
+    });
+    return parts.length > 0 ? parts.join(' · ') : null;
   }
 
   getEmployeeNameById(employeeId: number | null): string {
@@ -1307,33 +1677,74 @@ export class DashboardComponent {
   }
 
   getDayOffNamesForDate(dateStr: string, placedEmployeeIds: number[]): string {
-    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const days: DayOfWeek[] = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+    ];
     const date = new Date(dateStr + 'T00:00:00');
     const weekday = days[date.getDay()];
     return this.allEmployees
       .filter(
         (e) =>
-          e.dayOff === weekday &&
+          this.getEffectiveDayOff(e, dateStr) === weekday &&
           !e.functions.includes('encargado') &&
           !placedEmployeeIds.includes(e.id) &&
           !this.vacations().some((v) => {
             const startStr = v.startDate.split('T')[0];
             const endStr = v.endDate.split('T')[0];
             return v.employeeId === e.id && dateStr >= startStr && dateStr <= endStr;
-          })
+          }),
       )
       .map((e) => e.name.split(' ')[0])
       .join(', ');
   }
 
-  private drawFrancosLine(pdf: jsPDF, francos: string, x: number, y: number): void {
+  getVacationNamesForDate(dateStr: string, placedEmployeeIds: number[]): string {
+    return this.allEmployees
+      .filter(
+        (e) =>
+          !e.functions.includes('encargado') &&
+          !placedEmployeeIds.includes(e.id) &&
+          this.vacations().some((v) => {
+            const startStr = v.startDate.split('T')[0];
+            const endStr = v.endDate.split('T')[0];
+            return v.employeeId === e.id && dateStr >= startStr && dateStr <= endStr;
+          }),
+      )
+      .map((e) => e.name.split(' ')[0])
+      .join(', ');
+  }
+
+  private drawFooterLabel(pdf: jsPDF, label: string, value: string, x: number, y: number): void {
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(55, 65, 81);
-    pdf.text('Francos:', x, y);
-    const labelWidth = pdf.getTextWidth('Francos:');
+    pdf.text(`${label}:`, x, y);
+    const labelWidth = pdf.getTextWidth(`${label}:`);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(francos || '-', x + labelWidth + 1.5, y);
+    pdf.text(value || '-', x + labelWidth + 1.5, y);
+  }
+
+  private getIncidentsText(
+    incidents: Incident[] | undefined,
+    placed: { employeeId: number; shifts: ShiftBlock[] }[],
+  ): string {
+    return (incidents ?? [])
+      .map((incident) => {
+        const name = incident.employeeName.split(' ')[0];
+        if (incident.type === 'falta') return `${name} (A)`;
+        const time = incident.time;
+        if (time === null) return `${name} (RA)`;
+        const p = placed.find((pl) => pl.employeeId === incident.employeeId);
+        const shift = p?.shifts.find((s) => time >= s.start && time < s.end);
+        return shift ? `${name} (RA - debe ${shift.end - time}Hs)` : `${name} (RA)`;
+      })
+      .join(', ');
   }
 
   private drawShiftArrow(
@@ -1344,7 +1755,7 @@ export class DashboardComponent {
     rowHeight: number,
     name: string,
     color: [number, number, number],
-    fontSize: number
+    fontSize: number,
   ): void {
     const arrowY = trackY + rowHeight - 2.5;
     const headLength = 1.3;
@@ -1354,8 +1765,24 @@ export class DashboardComponent {
     pdf.setFillColor(color[0], color[1], color[2]);
     pdf.setLineWidth(0.4);
     pdf.line(leftX, arrowY, rightX, arrowY);
-    pdf.triangle(leftX, arrowY, leftX + headLength, arrowY - headHalf, leftX + headLength, arrowY + headHalf, 'F');
-    pdf.triangle(rightX, arrowY, rightX - headLength, arrowY - headHalf, rightX - headLength, arrowY + headHalf, 'F');
+    pdf.triangle(
+      leftX,
+      arrowY,
+      leftX + headLength,
+      arrowY - headHalf,
+      leftX + headLength,
+      arrowY + headHalf,
+      'F',
+    );
+    pdf.triangle(
+      rightX,
+      arrowY,
+      rightX - headLength,
+      arrowY - headHalf,
+      rightX - headLength,
+      arrowY + headHalf,
+      'F',
+    );
 
     pdf.setFontSize(fontSize);
     pdf.setFont('helvetica', 'bold');
@@ -1364,28 +1791,31 @@ export class DashboardComponent {
   }
 
   getAvailableEmployees(): Employee[] {
-    return this.allEmployees.filter((e) =>
-      !this.isEmployeePlaced(e.id) &&
-      !this.isEmployeeOnDayOff(e) &&
-      !this.isEmployeeOnVacation(e.id) &&
-      !e.functions.includes('encargado')
+    return this.allEmployees.filter(
+      (e) =>
+        !this.isEmployeePlaced(e.id) &&
+        !this.isEmployeeOnDayOff(e) &&
+        !this.isEmployeeOnVacation(e.id) &&
+        !e.functions.includes('encargado'),
     );
   }
 
   getEmployeesOnDayOff(): Employee[] {
-    return this.allEmployees.filter((e) =>
-      !this.isEmployeePlaced(e.id) &&
-      this.isEmployeeOnDayOff(e) &&
-      !this.isEmployeeOnVacation(e.id) &&
-      !e.functions.includes('encargado')
+    return this.allEmployees.filter(
+      (e) =>
+        !this.isEmployeePlaced(e.id) &&
+        this.isEmployeeOnDayOff(e) &&
+        !this.isEmployeeOnVacation(e.id) &&
+        !e.functions.includes('encargado'),
     );
   }
 
   getEmployeesOnVacation(): Employee[] {
-    return this.allEmployees.filter((e) =>
-      !this.isEmployeePlaced(e.id) &&
-      this.isEmployeeOnVacation(e.id) &&
-      !e.functions.includes('encargado')
+    return this.allEmployees.filter(
+      (e) =>
+        !this.isEmployeePlaced(e.id) &&
+        this.isEmployeeOnVacation(e.id) &&
+        !e.functions.includes('encargado'),
     );
   }
 
@@ -1406,7 +1836,7 @@ export class DashboardComponent {
       this.areas.map((area) => ({
         area,
         tracks: [],
-      }))
+      })),
     );
   }
 
@@ -1443,6 +1873,10 @@ export class DashboardComponent {
       this.modalEmployee.set(employee);
       this.modalArea.set(area);
       this.modalDropHour.set(hour);
+      const areaFunction = AREA_TO_FUNCTION[area];
+      this.modalSuggestedFunction.set(
+        employee.functions.includes(areaFunction) ? areaFunction : null,
+      );
       this.showModal.set(true);
     } catch (e) {
       console.error('Failed to parse employee data', e);
@@ -1453,17 +1887,28 @@ export class DashboardComponent {
     const employee = this.nightShiftEmployee();
     if (!employee) return;
 
+    const nightShifts: ShiftBlock[] = [
+      {
+        start: NIGHT_SHIFT_START,
+        end: extended ? NIGHT_SHIFT_EXTENDED_END : NIGHT_SHIFT_NORMAL_END,
+      },
+    ];
+
+    const conflict = this.findOverlapPlacement(employee.id, nightShifts, null);
+    if (conflict) {
+      this.toastService.error('Horario superpuesto', {
+        description: `${employee.name.split(' ')[0]} ya está asignado en ${AREA_LABELS[conflict.area]} de ${this.formatShiftsText(conflict.shifts)}.`,
+      });
+      this.closeNightShiftModal();
+      return;
+    }
+
     const newPlaced: PlacedEmployee = {
       id: Date.now(),
       employee,
       area: 'noche',
       function: 'nochero',
-      shifts: [
-        {
-          start: NIGHT_SHIFT_START,
-          end: extended ? NIGHT_SHIFT_EXTENDED_END : NIGHT_SHIFT_NORMAL_END,
-        },
-      ],
+      shifts: nightShifts,
     };
 
     this.placedEmployees.update((list) => [...list, newPlaced]);
@@ -1489,20 +1934,40 @@ export class DashboardComponent {
   onModalSave(data: { function: JobFunction; shifts: ShiftBlock[] }): void {
     const editingId = this.modalEditingId();
     const shifts = normalizeShiftBlocks(data.shifts);
-    if (shifts.length === 0) return;
+    if (shifts.length === 0) {
+      this.toastService.error('Horario inválido', {
+        description: 'Agregá al menos un horario con hora de inicio y fin.',
+      });
+      return;
+    }
+
+    const employee = this.modalEmployee();
+    if (!employee) return;
+
+    if (this.hasSelfOverlap(shifts)) {
+      this.toastService.error('Turnos superpuestos', {
+        description: 'Los horarios ingresados se superponen entre sí. Corregilos para continuar.',
+      });
+      return;
+    }
+
+    const conflict = this.findOverlapPlacement(employee.id, shifts, editingId);
+    if (conflict) {
+      this.toastService.error('Horario superpuesto', {
+        description: `${employee.name.split(' ')[0]} ya está asignado en ${AREA_LABELS[conflict.area]} de ${this.formatShiftsText(conflict.shifts)}. No puede tener doble función en la misma franja horaria.`,
+      });
+      return;
+    }
 
     if (editingId !== null) {
       this.placedEmployees.update((list) =>
         list.map((p) =>
           p.id === editingId
             ? { ...p, function: data.function, shifts, area: FUNCTION_TO_AREA[data.function] }
-            : p
-        )
+            : p,
+        ),
       );
     } else {
-      const employee = this.modalEmployee();
-      if (!employee) return;
-
       const area = FUNCTION_TO_AREA[data.function];
       const placedId = Date.now();
       const newPlaced: PlacedEmployee = {
@@ -1542,6 +2007,44 @@ export class DashboardComponent {
     this.modalEditingId.set(null);
     this.modalEditingFunction.set(null);
     this.modalEditingShifts.set(null);
+    this.modalSuggestedFunction.set(null);
+  }
+
+  private hasSelfOverlap(shifts: ShiftBlock[]): boolean {
+    const sorted = [...shifts].sort((a, b) => a.start - b.start);
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].start < sorted[i - 1].end) return true;
+    }
+    return false;
+  }
+
+  private findOverlapPlacement(
+    employeeId: number,
+    shifts: ShiftBlock[],
+    excludePlacedId: number | null,
+  ): PlacedEmployee | null {
+    return (
+      this.placedEmployees().find(
+        (p) =>
+          p.employee.id === employeeId &&
+          p.id !== excludePlacedId &&
+          p.shifts.some((own) => shifts.some((s) => s.start < own.end && own.start < s.end)),
+      ) ?? null
+    );
+  }
+
+  private mergeShiftBlocks(shifts: ShiftBlock[]): ShiftBlock[] {
+    const sorted = [...shifts].sort((a, b) => a.start - b.start);
+    const merged: ShiftBlock[] = [];
+    sorted.forEach((s) => {
+      const last = merged[merged.length - 1];
+      if (last && s.start <= last.end) {
+        last.end = Math.max(last.end, s.end);
+      } else {
+        merged.push({ start: s.start, end: s.end });
+      }
+    });
+    return merged;
   }
 
   rebuildSchedules(): void {
@@ -1552,8 +2055,8 @@ export class DashboardComponent {
 
       if (area === 'mostrador') {
         areaPlacements.sort((a, b) => {
-          const aStart = Math.min(...a.shifts.map(s => s.start));
-          const bStart = Math.min(...b.shifts.map(s => s.start));
+          const aStart = Math.min(...a.shifts.map((s) => s.start));
+          const bStart = Math.min(...b.shifts.map((s) => s.start));
           if (a.function === 'vendedor' && b.function !== 'vendedor') return -1;
           if (a.function !== 'vendedor' && b.function === 'vendedor') return 1;
           return aStart - bStart;
@@ -1592,8 +2095,8 @@ export class DashboardComponent {
 
       if (area === 'mostrador') {
         areaPlacements.sort((a, b) => {
-          const aStart = Math.min(...a.shifts.map(s => s.start));
-          const bStart = Math.min(...b.shifts.map(s => s.start));
+          const aStart = Math.min(...a.shifts.map((s) => s.start));
+          const bStart = Math.min(...b.shifts.map((s) => s.start));
           if (a.function === 'vendedor' && b.function !== 'vendedor') return -1;
           if (a.function !== 'vendedor' && b.function === 'vendedor') return 1;
           return aStart - bStart;
@@ -1608,7 +2111,7 @@ export class DashboardComponent {
 
         const minimalEmployee: MinimalEmployee = {
           id: placement.employeeId,
-          name: placement.employeeName
+          name: placement.employeeName,
         };
 
         placement.shifts.forEach((shift) => {
@@ -1661,7 +2164,7 @@ export class DashboardComponent {
       atencion_bot: 'bg-cyan-500',
       encargado: 'bg-red-600',
       nochero: 'bg-slate-800',
-      seguridad: 'bg-teal-500'
+      seguridad: 'bg-teal-500',
     };
     return colors[func];
   }
@@ -1674,7 +2177,20 @@ export class DashboardComponent {
   getCurrentDateFormatted(): string {
     const now = new Date();
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     const dayName = days[now.getDay()];
     const day = now.getDate();
     const month = months[now.getMonth()];
@@ -1685,7 +2201,20 @@ export class DashboardComponent {
   getScheduleDateFormatted(): string {
     const date = new Date(this.scheduleDate() + 'T00:00:00');
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     const dayName = days[date.getDay()];
     const day = date.getDate();
     const month = months[date.getMonth()];
@@ -1700,11 +2229,12 @@ export class DashboardComponent {
   goToNextDay(): void {
     if (this.hasPlacedEmployees() && !this.scheduleSaved()) {
       this.toastService.warning('Cambios sin guardar', {
-        description: 'Tienes empleados en la grilla sin guardar. ¿Querés descartar los cambios y avanzar?',
+        description:
+          'Tienes empleados en la grilla sin guardar. ¿Querés descartar los cambios y avanzar?',
         button: {
           title: 'Descartar y avanzar',
-          onClick: () => this.confirmNextDay()
-        }
+          onClick: () => this.confirmNextDay(),
+        },
       });
     } else {
       this.advanceToNextDay();
@@ -1739,7 +2269,9 @@ export class DashboardComponent {
     const selectedDate = input.value;
 
     if (this.isDateInPast(selectedDate)) {
-      this.toastService.error('Fecha no disponible', { description: 'No podés seleccionar días que ya pasaron.' });
+      this.toastService.error('Fecha no disponible', {
+        description: 'No podés seleccionar días que ya pasaron.',
+      });
       return;
     }
 
@@ -1752,8 +2284,8 @@ export class DashboardComponent {
             this.clearGrid();
             this.scheduleSaved.set(false);
             this.scheduleDate.set(selectedDate);
-          }
-        }
+          },
+        },
       });
     } else {
       this.scheduleDate.set(selectedDate);
@@ -1771,7 +2303,7 @@ export class DashboardComponent {
       atencion_bot: 'bg-cyan-100 text-cyan-800',
       encargado: 'bg-red-100 text-red-800',
       nochero: 'bg-slate-100 text-slate-800',
-      seguridad: 'bg-teal-100 text-teal-800'
+      seguridad: 'bg-teal-100 text-teal-800',
     };
     return colors[func];
   }
@@ -1814,34 +2346,47 @@ export class DashboardComponent {
       const exceptions = this.getActiveExceptionsFor(employee.id, dateStr);
 
       if (exceptions.length > 0) {
-        const excShifts = exceptions.flatMap((exc) => exc.shifts);
+        // El día que aplica una excepción, el empleado cumple SOLO la excepción: el rol y
+        // el horario de la excepción reemplazan por completo su jornada habitual (ej: los
+        // lunes cubre a Sandra en caja en lugar de su puesto de perfumería, o los lunes
+        // entra a las 19 en vez de a las 15). La jornada NO se complementa ese día.
+        // Prioridad entre excepciones que se pisan: espontáneas (puntuales) antes que
+        // fijas (semanales) y funciones distintas a la contratada antes que la propia,
+        // descontando lo ya usado para no asignar doble función en la misma franja.
+        const ordered = [...exceptions].sort((a, b) => {
+          const excScore = (exc: EmployeeException) =>
+            (exc.type === 'espontanea' ? 0 : 2) +
+            (exc.function === employee.defaultFunction ? 1 : 0);
+          return excScore(a) - excScore(b);
+        });
+        const used: ShiftBlock[] = [];
+        const shiftsByFunction = new Map<JobFunction, ShiftBlock[]>();
 
-        exceptions.forEach((exc, idx) => {
+        ordered.forEach((exc) => {
+          const base = exc.shifts.length > 0 ? exc.shifts : employee.shifts;
+          const effective = this.subtractShiftBlocks(base, used);
+          if (effective.length === 0) return;
+
+          shiftsByFunction.set(exc.function, [
+            ...(shiftsByFunction.get(exc.function) ?? []),
+            ...effective,
+          ]);
+          used.push(...effective);
+        });
+
+        // Un solo puesto por función: el mismo empleado con el mismo rol es una sola fila
+        // en la grilla, nunca dos "vendedores distintos".
+        let idx = 0;
+        shiftsByFunction.forEach((shifts, fn) => {
           newPlaced.push({
             id: Date.now() + idx + Math.random(),
             employee,
-            area: FUNCTION_TO_AREA[exc.function],
-            function: exc.function,
-            shifts: exc.shifts.length > 0 ? exc.shifts : employee.shifts,
+            area: FUNCTION_TO_AREA[fn],
+            function: fn,
+            shifts: this.mergeShiftBlocks(shifts),
           });
+          idx++;
         });
-
-        const isSplitJornada = employee.shifts.length > 1;
-        const overlapsOwnJornada = excShifts.some((used) =>
-          employee.shifts.some((own) => used.start < own.end && own.start < used.end)
-        );
-        if (isSplitJornada && overlapsOwnJornada) {
-          const remaining = this.subtractShiftBlocks(employee.shifts, excShifts);
-          if (remaining.length > 0) {
-            newPlaced.push({
-              id: Date.now() + 100 + Math.random(),
-              employee,
-              area: FUNCTION_TO_AREA[employee.defaultFunction],
-              function: employee.defaultFunction,
-              shifts: remaining,
-            });
-          }
-        }
         return;
       }
 
@@ -1897,15 +2442,16 @@ export class DashboardComponent {
     const branch = this.authService.selectedBranch();
     if (!branch) return;
 
-    const placedData: PlacedEmployeeData[] = this.placedEmployees().map(p => ({
+    const placedData: PlacedEmployeeData[] = this.placedEmployees().map((p) => ({
       employeeId: p.employee.id,
       employeeName: p.employee.name,
       area: p.area,
       function: p.function,
-      shifts: p.shifts
+      shifts: p.shifts,
     }));
 
-    const { data: existing, error: selectError } = await this.authService.getSupabase()
+    const { data: existing, error: selectError } = await this.authService
+      .getSupabase()
       .from('historial_horarios')
       .select('id')
       .eq('branch_id', branch.id.toString())
@@ -1914,16 +2460,19 @@ export class DashboardComponent {
 
     if (selectError && selectError.code !== 'PGRST116') {
       console.error('Error checking existing schedule:', selectError);
-      this.toastService.error('Error', { description: 'No se pudo verificar el horario existente' });
+      this.toastService.error('Error', {
+        description: 'No se pudo verificar el horario existente',
+      });
       return;
     }
 
     if (existing) {
-      const { error: updateError } = await this.authService.getSupabase()
+      const { error: updateError } = await this.authService
+        .getSupabase()
         .from('historial_horarios')
         .update({
           placed_employees: JSON.stringify(placedData),
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
 
@@ -1938,16 +2487,19 @@ export class DashboardComponent {
           nextDay.setDate(nextDay.getDate() + 1);
           this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
         }
-        this.toastService.success('Horario actualizado', { description: 'El horario se guardó correctamente' });
+        this.toastService.success('Horario actualizado', {
+          description: 'El horario se guardó correctamente',
+        });
         await this.historyService.loadFromDatabase();
       }
     } else {
-      const { error: insertError } = await this.authService.getSupabase()
+      const { error: insertError } = await this.authService
+        .getSupabase()
         .from('historial_horarios')
         .insert({
           branch_id: branch.id.toString(),
           schedule_date: scheduleDateStr,
-          placed_employees: JSON.stringify(placedData)
+          placed_employees: JSON.stringify(placedData),
         });
 
       if (insertError) {
@@ -1961,7 +2513,9 @@ export class DashboardComponent {
           nextDay.setDate(nextDay.getDate() + 1);
           this.minScheduleDate.set(nextDay.toISOString().split('T')[0]);
         }
-        this.toastService.success('Horario guardado', { description: 'El horario se guardó correctamente' });
+        this.toastService.success('Horario guardado', {
+          description: 'El horario se guardó correctamente',
+        });
         await this.historyService.loadFromDatabase();
       }
     }
@@ -1970,12 +2524,12 @@ export class DashboardComponent {
   async exportToPDF(): Promise<void> {
     try {
       const currentDate = this.getCurrentDateFormatted();
-      const placedData: PlacedEmployeeData[] = this.placedEmployees().map(p => ({
+      const placedData: PlacedEmployeeData[] = this.placedEmployees().map((p) => ({
         employeeId: p.employee.id,
         employeeName: p.employee.name,
         area: p.area,
         function: p.function,
-        shifts: p.shifts
+        shifts: p.shifts,
       }));
       this.saveSchedule.emit({ date: currentDate, placedEmployees: placedData });
 
@@ -1988,7 +2542,7 @@ export class DashboardComponent {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 6;
-      const title = `Horarios Farmacia - ${this.getCurrentDateFormatted()}`;
+      const title = `Horarios Farmacia - ${this.getScheduleDateFormatted()}`;
 
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
@@ -1996,7 +2550,7 @@ export class DashboardComponent {
 
       const francos = this.getDayOffNamesForDate(
         this.scheduleDate(),
-        this.placedEmployees().map((p) => p.employee.id)
+        this.placedEmployees().map((p) => p.employee.id),
       );
 
       const areaLabelWidth = 35;
@@ -2015,7 +2569,7 @@ export class DashboardComponent {
         atencion_bot: [34, 211, 238],
         encargado: [220, 38, 38],
         nochero: [30, 41, 59],
-        seguridad: [20, 184, 166]
+        seguridad: [20, 184, 166],
       };
 
       const drawGridHeader = (): void => {
@@ -2074,8 +2628,10 @@ export class DashboardComponent {
             const shiftStart = schedule.shift.start;
             const shiftEnd = schedule.shift.end;
             const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
-            const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
-            const rightX = margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
+            const leftX =
+              margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
+            const rightX =
+              margin + areaLabelWidth + (isNight ? gridWidth : ((shiftEnd - 6) / 18) * gridWidth);
             const color = funcColors[schedule.function];
 
             let name = schedule.employee.name.split(' ')[0];
@@ -2089,7 +2645,24 @@ export class DashboardComponent {
         currentY += areaRowHeight;
       });
 
-      this.drawFrancosLine(pdf, francos, margin, currentY + 7);
+      const vacaciones = this.getVacationNamesForDate(
+        this.scheduleDate(),
+        this.placedEmployees().map((p) => p.employee.id),
+      );
+      const incidentsText = this.getIncidentsText(
+        this.historyService.getByDate(this.scheduleDate())?.incidents,
+        this.placedEmployees().map((p) => ({ employeeId: p.employee.id, shifts: p.shifts })),
+      );
+
+      this.drawFooterLabel(pdf, 'Francos', francos, margin, currentY + 7);
+      let footerY = currentY + 12;
+      if (vacaciones) {
+        this.drawFooterLabel(pdf, 'Vacaciones', vacaciones, margin, footerY);
+        footerY += 5;
+      }
+      if (incidentsText) {
+        this.drawFooterLabel(pdf, 'Incidencias', incidentsText, margin, footerY);
+      }
 
       pdf.autoPrint();
       const blob = pdf.output('blob');

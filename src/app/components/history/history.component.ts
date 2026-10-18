@@ -4,8 +4,19 @@ import { FormsModule } from '@angular/forms';
 import jsPDF from 'jspdf';
 import { HistoryService } from '../../services/history.service';
 import { AuthService } from '../../services/auth.service';
-import { ScheduleHistory, JobFunction, Area, DayOfWeek, WORK_HOURS, AREA_LABELS, PlacedEmployeeData, NIGHT_SHIFT_NORMAL_END } from '../../models/employee.model';
+import {
+  ScheduleHistory,
+  JobFunction,
+  Area,
+  DayOfWeek,
+  WORK_HOURS,
+  AREA_LABELS,
+  PlacedEmployeeData,
+  NIGHT_SHIFT_NORMAL_END,
+  INCIDENT_LABELS,
+} from '../../models/employee.model';
 import { Router } from '@angular/router';
+import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
   selector: 'app-history',
@@ -17,8 +28,21 @@ export class HistoryComponent implements OnInit {
   historyService = inject(HistoryService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private confirmService = inject(ConfirmService);
 
   loadSchedule = output<ScheduleHistory>();
+
+  incidentLabels = INCIDENT_LABELS;
+
+  getIncidentsSummary(entry: ScheduleHistory): string {
+    return (entry.incidents ?? [])
+      .map((i) =>
+        i.type === 'falta'
+          ? `${i.employeeName} faltó`
+          : `${i.employeeName} se retiró antes${i.time !== null ? ` a las ${i.time}:00` : ''}`,
+      )
+      .join('; ');
+  }
 
   searchDate = signal('');
   selectedSchedule = signal<ScheduleHistory | null>(null);
@@ -28,9 +52,7 @@ export class HistoryComponent implements OnInit {
   get filteredHistory(): ScheduleHistory[] {
     const search = this.searchDate();
     if (!search) return this.historyService.history();
-    return this.historyService.history().filter(h =>
-      h.scheduleDate === search
-    );
+    return this.historyService.history().filter((h) => h.scheduleDate === search);
   }
 
   ngOnInit(): void {
@@ -73,8 +95,8 @@ export class HistoryComponent implements OnInit {
     this.router.navigate(['/dashboard']);
   }
 
-  downloadPDF(entry: ScheduleHistory): void {
-    const pdf = this.generatePDF(entry);
+  async downloadPDF(entry: ScheduleHistory): Promise<void> {
+    const pdf = await this.generatePDF(entry);
     const blob = pdf.output('blob');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -84,12 +106,18 @@ export class HistoryComponent implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  printPDF(entry: ScheduleHistory): void {
-    const pdf = this.generatePDF(entry);
+  async printPDF(entry: ScheduleHistory): Promise<void> {
+    const pdf = await this.generatePDF(entry);
     pdf.autoPrint();
     const blob = pdf.output('blob');
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
+  }
+
+  confirmDeleteEntry(entry: ScheduleHistory): void {
+    this.confirmService.confirmDelete(`el horario del ${entry.date}`, () =>
+      this.deleteEntry(entry.id),
+    );
   }
 
   async deleteEntry(id: string): Promise<void> {
@@ -111,12 +139,12 @@ export class HistoryComponent implements OnInit {
       atencion_bot: 'bg-cyan-500',
       encargado: 'bg-red-600',
       nochero: 'bg-slate-800',
-      seguridad: 'bg-teal-500'
+      seguridad: 'bg-teal-500',
     };
     return colors[func];
   }
 
-  private generatePDF(entry: ScheduleHistory): jsPDF {
+  private async generatePDF(entry: ScheduleHistory): Promise<jsPDF> {
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -133,12 +161,23 @@ export class HistoryComponent implements OnInit {
     pdf.text(title, pageWidth / 2, margin + 4, { align: 'center' });
 
     const branchEmployees = this.authService.branchEmployees().get(Number(entry.branchId)) ?? [];
-    const days: DayOfWeek[] = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const days: DayOfWeek[] = [
+      'domingo',
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+    ];
     const entryDate = new Date(entry.scheduleDate + 'T00:00:00');
     const weekday = days[entryDate.getDay()];
     const placedIds = entry.placedEmployees.map((p) => p.employeeId);
     const francos = branchEmployees
-      .filter((e) => e.dayOff === weekday && !placedIds.includes(e.id) && !e.functions.includes('encargado'))
+      .filter(
+        (e) =>
+          e.dayOff === weekday && !placedIds.includes(e.id) && !e.functions.includes('encargado'),
+      )
       .map((e) => e.name.split(' ')[0])
       .join(', ');
 
@@ -148,7 +187,7 @@ export class HistoryComponent implements OnInit {
     const headerHeight = 7;
     const startY = margin + 9;
 
-      const funcColors: Record<JobFunction, [number, number, number]> = {
+    const funcColors: Record<JobFunction, [number, number, number]> = {
       cajero: [59, 130, 246],
       vendedor: [16, 185, 129],
       perfumera: [236, 72, 153],
@@ -158,25 +197,47 @@ export class HistoryComponent implements OnInit {
       atencion_bot: [34, 211, 238],
       encargado: [220, 38, 38],
       nochero: [30, 41, 59],
-      seguridad: [20, 184, 166]
+      seguridad: [20, 184, 166],
     };
 
-    const areas: Area[] = ['caja', 'mostrador', 'perfumeria', 'salon', 'inventario', 'limpieza', 'seguridad', 'bot', 'noche'];
+    const areas: Area[] = [
+      'caja',
+      'mostrador',
+      'perfumeria',
+      'salon',
+      'inventario',
+      'limpieza',
+      'seguridad',
+      'bot',
+      'noche',
+    ];
 
-    const areaTracks: Record<Area, { employee: string; function: JobFunction; shift: { start: number; end: number } }[][]> = {
-      caja: [], mostrador: [], perfumeria: [], salon: [], inventario: [], limpieza: [], seguridad: [], bot: [], noche: []
+    const areaTracks: Record<
+      Area,
+      { employee: string; function: JobFunction; shift: { start: number; end: number } }[][]
+    > = {
+      caja: [],
+      mostrador: [],
+      perfumeria: [],
+      salon: [],
+      inventario: [],
+      limpieza: [],
+      seguridad: [],
+      bot: [],
+      noche: [],
     };
 
-    entry.placedEmployees.forEach(p => {
-      p.shifts.forEach(shift => {
+    entry.placedEmployees.forEach((p) => {
+      p.shifts.forEach((shift) => {
         const areaKey = p.area as Area;
         let trackIndex = 0;
         for (let i = 0; i < 10; i++) {
           const track = areaTracks[areaKey][i] || [];
-          const hasConflict = track.some(slot =>
-            (shift.start >= slot.shift.start && shift.start < slot.shift.end) ||
-            (shift.end > slot.shift.start && shift.end <= slot.shift.end) ||
-            (shift.start <= slot.shift.start && shift.end >= slot.shift.end)
+          const hasConflict = track.some(
+            (slot) =>
+              (shift.start >= slot.shift.start && shift.start < slot.shift.end) ||
+              (shift.end > slot.shift.start && shift.end <= slot.shift.end) ||
+              (shift.start <= slot.shift.start && shift.end >= slot.shift.end),
           );
           if (!hasConflict) {
             trackIndex = i;
@@ -185,7 +246,11 @@ export class HistoryComponent implements OnInit {
           trackIndex = i + 1;
         }
         if (!areaTracks[areaKey][trackIndex]) areaTracks[areaKey][trackIndex] = [];
-        areaTracks[areaKey][trackIndex].push({ employee: p.employeeName, function: p.function, shift });
+        areaTracks[areaKey][trackIndex].push({
+          employee: p.employeeName,
+          function: p.function,
+          shift,
+        });
       });
     });
 
@@ -211,7 +276,7 @@ export class HistoryComponent implements OnInit {
 
     let currentY = startY + headerHeight;
 
-    areas.forEach(area => {
+    areas.forEach((area) => {
       const tracks = areaTracks[area] || [];
       const maxTracks = tracks.length;
       const areaRowHeight = maxTracks > 0 ? rowHeight * maxTracks : rowHeight;
@@ -241,15 +306,16 @@ export class HistoryComponent implements OnInit {
       tracks.forEach((track, trackIndex) => {
         const trackY = currentY + trackIndex * rowHeight;
 
-        track.forEach(schedule => {
+        track.forEach((schedule) => {
           const isNight = area === 'noche';
           const shiftStart = schedule.shift.start;
           const shiftEnd = schedule.shift.end;
           const gridWidth = pageWidth - margin * 2 - areaLabelWidth;
-          const leftX = margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 7) / 17) * gridWidth);
+          const leftX =
+            margin + areaLabelWidth + (isNight ? 0 : ((shiftStart - 6) / 18) * gridWidth);
           const rightX = isNight
             ? margin + areaLabelWidth + gridWidth
-            : margin + areaLabelWidth + ((shiftEnd - 7) / 17) * gridWidth;
+            : margin + areaLabelWidth + ((shiftEnd - 6) / 18) * gridWidth;
           const color = funcColors[schedule.function];
 
           let name = schedule.employee.split(' ')[0];
@@ -263,16 +329,66 @@ export class HistoryComponent implements OnInit {
       currentY += areaRowHeight;
     });
 
-    const legendY = currentY + 7;
+    const vacaciones = await this.getVacationNamesForDate(entry);
+    const incidencias = this.getIncidentsText(entry);
+
+    let footerY = currentY + 7;
+    this.drawFooterLabel(pdf, 'Francos', francos || '-', margin, footerY);
+    if (vacaciones) {
+      footerY += 5;
+      this.drawFooterLabel(pdf, 'Vacaciones', vacaciones, margin, footerY);
+    }
+    if (incidencias) {
+      footerY += 5;
+      this.drawFooterLabel(pdf, 'Incidencias', incidencias, margin, footerY);
+    }
+
+    return pdf;
+  }
+
+  private async getVacationNamesForDate(entry: ScheduleHistory): Promise<string> {
+    const { data, error } = await this.authService
+      .getSupabase()
+      .from('vacaciones')
+      .select('empleado_id')
+      .lte('comienza', entry.scheduleDate)
+      .gte('finaliza', entry.scheduleDate);
+    if (error || !data) return '';
+
+    const vacationIds = new Set<number>(data.map((v: any) => v.empleado_id));
+    const placedIds = entry.placedEmployees.map((p) => p.employeeId);
+    const branchEmployees = this.authService.branchEmployees().get(Number(entry.branchId)) ?? [];
+    return branchEmployees
+      .filter(
+        (e) =>
+          vacationIds.has(e.id) && !placedIds.includes(e.id) && !e.functions.includes('encargado'),
+      )
+      .map((e) => e.name.split(' ')[0])
+      .join(', ');
+  }
+
+  private getIncidentsText(entry: ScheduleHistory): string {
+    return (entry.incidents ?? [])
+      .map((incident) => {
+        const name = incident.employeeName.split(' ')[0];
+        if (incident.type === 'falta') return `${name} (A)`;
+        const time = incident.time;
+        if (time === null) return `${name} (RA)`;
+        const placed = entry.placedEmployees.find((p) => p.employeeId === incident.employeeId);
+        const shift = placed?.shifts.find((s) => time >= s.start && time < s.end);
+        return shift ? `${name} (RA - debe ${shift.end - time}Hs)` : `${name} (RA)`;
+      })
+      .join(', ');
+  }
+
+  private drawFooterLabel(pdf: jsPDF, label: string, value: string, x: number, y: number): void {
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(55, 65, 81);
-    pdf.text('Francos:', margin, legendY);
-    const francosLabelWidth = pdf.getTextWidth('Francos:');
+    pdf.text(`${label}:`, x, y);
+    const labelWidth = pdf.getTextWidth(`${label}:`);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(francos || '-', margin + francosLabelWidth + 1.5, legendY);
-
-    return pdf;
+    pdf.text(value, x + labelWidth + 1.5, y);
   }
 
   private drawShiftArrow(
@@ -282,7 +398,7 @@ export class HistoryComponent implements OnInit {
     trackY: number,
     rowHeight: number,
     name: string,
-    color: [number, number, number]
+    color: [number, number, number],
   ): void {
     const arrowY = trackY + rowHeight - 2.5;
     const headLength = 1.3;
@@ -292,8 +408,24 @@ export class HistoryComponent implements OnInit {
     pdf.setFillColor(color[0], color[1], color[2]);
     pdf.setLineWidth(0.4);
     pdf.line(leftX, arrowY, rightX, arrowY);
-    pdf.triangle(leftX, arrowY, leftX + headLength, arrowY - headHalf, leftX + headLength, arrowY + headHalf, 'F');
-    pdf.triangle(rightX, arrowY, rightX - headLength, arrowY - headHalf, rightX - headLength, arrowY + headHalf, 'F');
+    pdf.triangle(
+      leftX,
+      arrowY,
+      leftX + headLength,
+      arrowY - headHalf,
+      leftX + headLength,
+      arrowY + headHalf,
+      'F',
+    );
+    pdf.triangle(
+      rightX,
+      arrowY,
+      rightX - headLength,
+      arrowY - headHalf,
+      rightX - headLength,
+      arrowY + headHalf,
+      'F',
+    );
 
     pdf.setFontSize(5.5);
     pdf.setFont('helvetica', 'bold');
