@@ -300,7 +300,7 @@
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }}"
           >
-            Cambios
+            Excepciones
           </button>
           <button
             (click)="setSection('vacaciones')"
@@ -1404,12 +1404,12 @@
               (click)="openNewExceptionModal('espontanea')"
               class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
             >
-              + Nueva excepción espontánea
+              + Nueva excepción
             </button>
           </div>
           <p class="text-xs text-gray-500 mb-4">
-            Canjes puntuales por fecha: el empleado cubre y quien cubre descansa esos días (ej:
-            canje de franco entre dos empleados).
+            Cubre otro rol en fechas puntuales (y quien cubre descansa esos días) o mueve su día de
+            franco sin cubrir a nadie.
           </p>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -1419,19 +1419,13 @@
                     Empleado
                   </th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Desde
+                    Tipo
                   </th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Hasta
+                    Fechas / Vigencia
                   </th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Rol
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Descansa
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Horario
+                    Detalle
                   </th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                     Acciones
@@ -1439,30 +1433,42 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                @for (exc of getEspontaneas(); track exc.id) {
+                @for (exc of getEspontaneasYFrancos(); track exc.id) {
                   <tr>
                     <td class="px-4 py-2 text-sm text-gray-900">
                       {{ getEmployeeNameById(exc.employeeId) }}
                     </td>
-                    <td class="px-4 py-2 text-sm text-gray-500">{{ exc.startDate }}</td>
-                    <td class="px-4 py-2 text-sm text-gray-500">{{ exc.endDate }}</td>
                     <td class="px-4 py-2">
-                      <span
-                        class="px-2 py-0.5 rounded text-xs font-medium {{
-                          getFunctionBadgeColor(exc.function)
-                        }}"
-                        >{{ functionLabels[exc.function] }}</span
-                      >
+                      @if (exc.type === 'franco') {
+                        <span
+                          class="px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700"
+                          >Franco</span
+                        >
+                      } @else {
+                        <span
+                          class="px-2 py-0.5 rounded text-xs font-medium {{
+                            getFunctionBadgeColor(exc.function)
+                          }}"
+                          >{{ functionLabels[exc.function] }}</span
+                        >
+                      }
                     </td>
                     <td class="px-4 py-2 text-sm text-gray-500">
-                      {{
-                        exc.coveredEmployeeId !== null
-                          ? getEmployeeNameById(exc.coveredEmployeeId)
-                          : '-'
-                      }}
+                      @if (exc.type === 'franco') {
+                        {{ getFrancoVigencia(exc) }}
+                      } @else {
+                        {{ exc.startDate }} → {{ exc.endDate }}
+                      }
                     </td>
                     <td class="px-4 py-2 text-sm text-gray-500">
-                      {{ getExceptionShiftsText(exc) }}
+                      @if (exc.type === 'franco') {
+                        {{ getFrancoOriginalDay(exc) }} → {{ dayLabels[exc.dayOfWeek!] }}
+                      } @else {
+                        @if (exc.coveredEmployeeId !== null) {
+                          cubre a {{ getEmployeeNameById(exc.coveredEmployeeId) }} ·
+                        }
+                        {{ getExceptionShiftsText(exc) }}
+                      }
                     </td>
                     <td class="px-4 py-2 text-sm">
                       <div class="flex items-center gap-1">
@@ -1508,115 +1514,10 @@
                     </td>
                   </tr>
                 }
-                @if (getEspontaneas().length === 0) {
-                  <tr>
-                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-                      No hay excepciones espontáneas
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-4">
-          <div class="flex justify-between items-center mb-1">
-            <h3 class="text-lg font-semibold text-gray-900">Cambios de franco</h3>
-            <button
-              (click)="openNewExceptionModal('franco')"
-              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
-            >
-              + Nuevo cambio de franco
-            </button>
-          </div>
-          <p class="text-xs text-gray-500 mb-4">
-            Se mueve el día de franco del empleado: hace sus horarios habituales en su día original
-            y descansa el nuevo día. No cubre a nadie. Por defecto dura una semana.
-          </p>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Empleado
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Franco original
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Nuevo franco
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Vigencia
-                  </th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                @for (exc of getFrancos(); track exc.id) {
-                  <tr>
-                    <td class="px-4 py-2 text-sm text-gray-900">
-                      {{ getEmployeeNameById(exc.employeeId) }}
-                    </td>
-                    <td class="px-4 py-2 text-sm text-gray-500">{{ getFrancoOriginalDay(exc) }}</td>
-                    <td class="px-4 py-2">
-                      <span
-                        class="px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700"
-                        >{{ dayLabels[exc.dayOfWeek!] }}</span
-                      >
-                    </td>
-                    <td class="px-4 py-2 text-sm text-gray-500">{{ getFrancoVigencia(exc) }}</td>
-                    <td class="px-4 py-2 text-sm">
-                      <div class="flex items-center gap-1">
-                        <button
-                          (click)="openEditExceptionModal(exc)"
-                          class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md"
-                          title="Editar"
-                        >
-                          <svg
-                            class="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          (click)="confirmDeleteException(exc)"
-                          class="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                          title="Eliminar"
-                        >
-                          <svg
-                            class="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-                @if (getFrancos().length === 0) {
+                @if (getEspontaneasYFrancos().length === 0) {
                   <tr>
                     <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                      No hay cambios de franco
+                      No hay excepciones espontáneas ni cambios de franco
                     </td>
                   </tr>
                 }
@@ -2253,17 +2154,42 @@
             </select>
           }
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-          <select
-            [(ngModel)]="exceptionForm.type"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="fija">Fija (día de la semana)</option>
-            <option value="espontanea">Espontánea (rango de fechas)</option>
-            <option value="franco">Cambio de franco (día de la semana)</option>
-          </select>
-        </div>
+        @if (exceptionForm.type !== 'fija') {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Funcionalidad</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                (click)="exceptionForm.type = 'espontanea'"
+                [class]="
+                  exceptionForm.type === 'espontanea'
+                    ? 'px-3 py-2 rounded-lg text-sm font-medium border border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50'
+                "
+              >
+                Cubre a alguien
+              </button>
+              <button
+                type="button"
+                (click)="exceptionForm.type = 'franco'"
+                [class]="
+                  exceptionForm.type === 'franco'
+                    ? 'px-3 py-2 rounded-lg text-sm font-medium border border-teal-600 bg-teal-50 text-teal-700'
+                    : 'px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50'
+                "
+              >
+                Mueve su franco
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">
+              @if (exceptionForm.type === 'franco') {
+                Mueve su día de descanso en un rango de fechas, sin cubrir a nadie.
+              } @else {
+                Reemplaza su jornada y, si elegís a alguien, esa persona descansa esos días.
+              }
+            </p>
+          </div>
+        }
         @if (exceptionForm.type === 'fija' || exceptionForm.type === 'franco') {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">{{

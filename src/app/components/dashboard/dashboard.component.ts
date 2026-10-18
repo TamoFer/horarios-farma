@@ -656,8 +656,12 @@ export class DashboardComponent {
     return this.exceptionService.exceptions().filter((e) => e.type === 'fija');
   }
 
-  getEspontaneas(): EmployeeException[] {
-    return this.exceptionService.exceptions().filter((e) => e.type === 'espontanea');
+  /** Sección unificada: espontáneas (cubren rol/horario) y cambios de franco (mueven el descanso). */
+  getEspontaneasYFrancos(): EmployeeException[] {
+    return this.exceptionService
+      .exceptions()
+      .filter((e) => e.type === 'espontanea' || e.type === 'franco')
+      .sort((a, b) => (a.type === 'espontanea' ? 0 : 1) - (b.type === 'espontanea' ? 0 : 1));
   }
 
   getEmployeeExceptions(employeeId: number): EmployeeException[] {
@@ -1555,10 +1559,6 @@ export class DashboardComponent {
       .filter(
         (x) => x.type !== 'franco' && x.employeeId === employeeId && exceptionAppliesOn(x, dateStr),
       );
-  }
-
-  getFrancos(): EmployeeException[] {
-    return this.exceptionService.exceptions().filter((e) => e.type === 'franco');
   }
 
   /** Cambio de franco vigente para el empleado en la fecha indicada. */
