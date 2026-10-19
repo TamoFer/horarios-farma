@@ -463,7 +463,27 @@ export class DashboardComponent {
   }
 
   setSection(section: 'horario' | 'empleados' | 'vacaciones' | 'historial' | 'cambios'): void {
+    if (
+      this.authService.isReadOnly() &&
+      (section === 'empleados' || section === 'vacaciones' || section === 'cambios')
+    ) {
+      this.toastService.error('Solo lectura', {
+        description: 'Tu rol no permite administrar empleados, vacaciones ni excepciones.',
+      });
+      return;
+    }
     this.currentSection.set(section);
+  }
+
+  /** Supervisor y RRHH son solo lectura: bloquea cualquier mutación. */
+  private canEdit(): boolean {
+    if (this.authService.isReadOnly()) {
+      this.toastService.error('Solo lectura', {
+        description: 'Tu rol permite ver los horarios, pero no editarlos.',
+      });
+      return false;
+    }
+    return true;
   }
 
   async deleteEmployee(id: number): Promise<void> {
@@ -1841,6 +1861,7 @@ export class DashboardComponent {
   }
 
   clearGrid(): void {
+    if (!this.canEdit()) return;
     this.placedEmployees.set([]);
     this.scheduleSaved.set(false);
     this.initEmptySchedule();
@@ -1860,6 +1881,7 @@ export class DashboardComponent {
 
   onDropOnCell(event: DragEvent, area: Area, hour: number): void {
     event.preventDefault();
+    if (this.authService.isReadOnly()) return;
     const employeeJson = event.dataTransfer?.getData('text/plain');
     if (!employeeJson) return;
 
@@ -1987,6 +2009,7 @@ export class DashboardComponent {
   }
 
   openEditModal(placedId: number): void {
+    if (this.authService.isReadOnly()) return;
     const placed = this.placedEmployees().find((p) => p.id === placedId);
     if (!placed) return;
 
@@ -2135,6 +2158,7 @@ export class DashboardComponent {
   }
 
   removePlacedEmployee(placedId: number): void {
+    if (this.authService.isReadOnly()) return;
     this.placedEmployees.update((list) => list.filter((p) => p.id !== placedId));
     this.scheduleSaved.set(false);
     this.rebuildSchedules();
@@ -2338,6 +2362,7 @@ export class DashboardComponent {
   // }
 
   autoAssignEmployees(): void {
+    if (!this.canEdit()) return;
     const available = this.getAvailableEmployees();
     const newPlaced: PlacedEmployee[] = [];
     const dateStr = this.scheduleDate();
@@ -2437,6 +2462,7 @@ export class DashboardComponent {
   }
 
   async saveScheduleToHistory(): Promise<void> {
+    if (!this.canEdit()) return;
     const currentDate = this.getCurrentDateFormatted();
     const scheduleDateStr = this.scheduleDate();
     const branch = this.authService.selectedBranch();

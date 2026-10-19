@@ -14,10 +14,11 @@ CREATE TABLE sucursales (
 -- Roles de usuarios (admin/manager)
 CREATE TABLE roles_usuarios (
   id SERIAL PRIMARY KEY,
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- NOTA: en la base viva esta columna es TEXT (guarda el id de auth como texto).
+  user_id TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'manager' CHECK (role IN ('admin', 'manager')),
+  role TEXT NOT NULL DEFAULT 'pendiente' CHECK (role IN ('admin', 'encargado', 'supervisor', 'rrhh', 'pendiente')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -202,8 +203,17 @@ CREATE POLICY "Managers can delete excepciones" ON excepciones
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.roles_usuarios (user_id, name, email)
-  VALUES (NEW.id, NEW.raw_user_meta_data->>'name', NEW.email);
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios WHERE user_id = NEW.id::text
+  ) THEN
+    INSERT INTO public.roles_usuarios (user_id, name, email, role)
+    VALUES (
+      NEW.id::text,
+      COALESCE(NULLIF(NEW.raw_user_meta_data->>'name', ''), split_part(NEW.email, '@', 1)),
+      NEW.email,
+      'pendiente'
+    );
+  END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

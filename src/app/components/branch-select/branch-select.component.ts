@@ -9,7 +9,9 @@ import { DynamicToastService } from 'ngx-dynamic-toast';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center p-4">
+    <div
+      class="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center p-4"
+    >
       <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
         <div class="text-center mb-8">
           <h1 class="text-2xl font-bold text-gray-800">Selecciona una Sucursal</h1>
@@ -22,12 +24,15 @@ import { DynamicToastService } from 'ngx-dynamic-toast';
               (click)="selectBranch(branch)"
               class="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-500 rounded-xl transition-all duration-200 w-full aspect-square group"
             >
-              <img 
-                src="https://images.icon-icons.com/973/PNG/512/Pharmacy_icon-icons.com_74919.png" 
-                alt="Farmacia" 
+              <img
+                src="https://images.icon-icons.com/973/PNG/512/Pharmacy_icon-icons.com_74919.png"
+                alt="Farmacia"
                 class="w-16 h-16 mb-2 object-contain"
+              />
+              <span
+                class="text-lg font-semibold text-gray-800 group-hover:text-blue-700 text-center"
+                >{{ branch.name }}</span
               >
-              <span class="text-lg font-semibold text-gray-800 group-hover:text-blue-700 text-center">{{ branch.name }}</span>
             </button>
           }
 
@@ -36,20 +41,40 @@ import { DynamicToastService } from 'ngx-dynamic-toast';
               (click)="goToAdminPanel()"
               class="flex flex-col items-center justify-center p-6 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 hover:border-indigo-500 rounded-xl transition-all duration-200 w-full aspect-square"
             >
-              <img 
-                src="https://images.icon-icons.com/2853/PNG/512/settings_setting_options_icon_181547.png" 
-                alt="Administración" 
+              <img
+                src="https://images.icon-icons.com/2853/PNG/512/settings_setting_options_icon_181547.png"
+                alt="Administración"
                 class="w-16 h-16 mb-2 object-contain"
-              >
+              />
               <span class="text-lg font-semibold text-indigo-700 text-center">Administración</span>
             </button>
           }
         </div>
 
-        @if (authService.managerBranches().length === 0 && !authService.isAdmin()) {
+        @if (authService.isPending()) {
+          <div class="text-center py-8">
+            <p class="text-gray-700 font-medium">Tu cuenta está pendiente de aprobación.</p>
+            <p class="text-gray-400 text-sm mt-2">
+              Un administrador te tiene que asignar un rol y una sucursal. Probá de nuevo en unos
+              minutos.
+            </p>
+            <button
+              (click)="refresh()"
+              class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition"
+            >
+              Actualizar
+            </button>
+          </div>
+        } @else if (authService.managerBranches().length === 0 && !authService.isAdmin()) {
           <div class="text-center py-8">
             <p class="text-gray-500">No tienes sucursales asignadas.</p>
             <p class="text-gray-400 text-sm mt-2">Contacta al administrador del sistema.</p>
+            <button
+              (click)="refresh()"
+              class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition"
+            >
+              Actualizar
+            </button>
           </div>
         }
 
@@ -63,14 +88,14 @@ import { DynamicToastService } from 'ngx-dynamic-toast';
         </div>
       </div>
     </div>
-  `
+  `,
 })
 export class BranchSelectComponent implements OnInit {
   private toastService = inject(DynamicToastService);
 
   constructor(
     public authService: AuthService,
-    private router: Router
+    private router: Router,
   ) {
     effect(() => {
       if (!authService.isAuthenticated()) {
@@ -82,7 +107,9 @@ export class BranchSelectComponent implements OnInit {
   ngOnInit(): void {
     const managerName = this.authService.manager()?.name;
     if (managerName) {
-      this.toastService.success('Bienvenido', { description: `Hola ${managerName}. Seleccioná la sucursal.` });
+      this.toastService.success('Bienvenido', {
+        description: `Hola ${managerName}. Seleccioná la sucursal.`,
+      });
     }
   }
 
@@ -95,6 +122,10 @@ export class BranchSelectComponent implements OnInit {
   async signOut(): Promise<void> {
     await this.authService.signOut();
     this.router.navigate(['/login']);
+  }
+
+  async refresh(): Promise<void> {
+    await this.authService.refreshManagerData();
   }
 
   goToAdminPanel(): void {

@@ -2,7 +2,7 @@ import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService, Manager } from '../../services/auth.service';
+import { AuthService, Manager, UserRole } from '../../services/auth.service';
 import { AdminService } from '../../services/admin.service';
 
 @Component({
@@ -17,6 +17,10 @@ import { AdminService } from '../../services/admin.service';
             <div>
               <h1 class="text-2xl font-bold text-gray-800">Administración de Usuarios</h1>
               <p class="text-gray-500 text-sm mt-1">Gestiona roles y asignaciones de sucursales</p>
+              <p class="text-xs text-amber-600 mt-1">
+                Los usuarios nuevos aparecen como «Pendiente». Asignales un rol (y sucursal si es
+                Encargado) para activarlos.
+              </p>
             </div>
             <button
               (click)="goBack()"
@@ -32,17 +36,33 @@ import { AdminService } from '../../services/admin.service';
             </div>
           } @else {
             <div class="space-y-4">
-              @for (manager of managers(); track manager.id) {
+              @for (manager of pendingFirst(); track manager.user_id) {
                 <div class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                      <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <div
+                        class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center"
+                      >
                         <span class="text-indigo-600 font-bold text-lg">
                           {{ manager.name.charAt(0).toUpperCase() }}
                         </span>
                       </div>
                       <div>
-                        <p class="font-semibold text-gray-900">{{ manager.name }}</p>
+                        <p class="font-semibold text-gray-900">
+                          {{ manager.name }}
+                          @if (manager.role === 'pendiente') {
+                            <span
+                              class="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700"
+                              >Pendiente</span
+                            >
+                          }
+                          @if (isManagerWithoutBranch(manager)) {
+                            <span
+                              class="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700"
+                              >Sin sucursal</span
+                            >
+                          }
+                        </p>
                         <p class="text-sm text-gray-500">{{ manager.email }}</p>
                       </div>
                     </div>
@@ -53,20 +73,25 @@ import { AdminService } from '../../services/admin.service';
                         (change)="onRoleChange(manager, $event)"
                         class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
-                        <option value="manager">Manager</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="encargado">Encargado</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="rrhh">Recursos Humanos</option>
                         <option value="admin">Admin</option>
                       </select>
 
-                      <button
-                        (click)="toggleBranchAssignment(manager)"
-                        class="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-medium"
-                      >
-                        Sucursales
-                      </button>
+                      @if (manager.role === 'encargado') {
+                        <button
+                          (click)="toggleBranchAssignment(manager)"
+                          class="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-medium"
+                        >
+                          Sucursales
+                        </button>
+                      }
                     </div>
                   </div>
 
-                  @if (expandedManagerId() === manager.id) {
+                  @if (expandedManagerId() === manager.id && manager.role === 'encargado') {
                     <div class="mt-4 pt-4 border-t border-gray-200">
                       <p class="text-sm font-medium text-gray-700 mb-3">Asignar a sucursales:</p>
                       <div class="flex flex-wrap gap-2">
@@ -91,16 +116,22 @@ import { AdminService } from '../../services/admin.service';
               @if (managers().length === 0) {
                 <p class="text-center text-gray-500 py-8">No hay usuarios registrados.</p>
               }
+
+              @if (adminService.lastError()) {
+                <div class="bg-red-50 text-red-600 p-3 rounded-lg text-sm break-words">
+                  Error al listar usuarios: {{ adminService.lastError() }}
+                </div>
+              }
             </div>
           }
         </div>
       </div>
     </div>
-  `
+  `,
 })
 export class AdminManagersComponent implements OnInit {
   private authService = inject(AuthService);
-  private adminService = inject(AdminService);
+  adminService = inject(AdminService);
   private router = inject(Router);
 
   managers = this.adminService.managers;
@@ -127,10 +158,30 @@ export class AdminManagersComponent implements OnInit {
 
     for (const manager of allManagers) {
       const branches = await this.adminService.getManagerBranches(manager.id);
-      map.set(manager.id, branches.map(b => b.id));
+      map.set(
+        manager.id,
+        branches.map((b) => b.id),
+      );
     }
 
     this.managerBranchMap.set(map);
+  }
+
+  /** Encargado sin sucursal asignada: todavía no puede operar. */
+  isManagerWithoutBranch(manager: Manager): boolean {
+    if (manager.role !== 'encargado') return false;
+    return (this.managerBranchMap().get(manager.id)?.length ?? 0) === 0;
+  }
+
+  /** Orden: pendientes primero, luego encargados sin sucursal. */
+  private priority(manager: Manager): number {
+    if (manager.role === 'pendiente') return 0;
+    if (this.isManagerWithoutBranch(manager)) return 1;
+    return 2;
+  }
+
+  pendingFirst(): Manager[] {
+    return [...this.managers()].sort((a, b) => this.priority(a) - this.priority(b));
   }
 
   isManagerAssignedToBranch(manager: Manager, branchId: number): boolean {
@@ -139,10 +190,10 @@ export class AdminManagersComponent implements OnInit {
 
   async onRoleChange(manager: Manager, event: Event) {
     const select = event.target as HTMLSelectElement;
-    const newRole = select.value as 'admin' | 'manager';
+    const newRole = select.value as UserRole;
 
-    await this.adminService.updateManagerRole(manager.id, newRole);
-    await this.adminService.loadAllManagers();
+    await this.adminService.updateManagerRole(manager.user_id, newRole);
+    await this.loadAllManagerBranches();
   }
 
   toggleBranchAssignment(manager: Manager) {

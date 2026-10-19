@@ -1,9 +1,9 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { AuthService, Branch, Manager } from './auth.service';
+import { AuthService, Branch, Manager, UserRole } from './auth.service';
 import { Employee } from '../models/employee.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AdminService {
   private authService = inject(AuthService);
@@ -12,33 +12,44 @@ export class AdminService {
   branches = signal<Branch[]>([]);
   managers = signal<Manager[]>([]);
   loading = signal(false);
+  lastError = signal<string | null>(null);
 
   async loadAllBranches(): Promise<void> {
     this.loading.set(true);
-    const { data, error } = await this.supabase
-      .from('sucursales')
-      .select('*')
-      .order('nombre_suc');
+    const { data, error } = await this.supabase.from('sucursales').select('*').order('nombre_suc');
 
     if (!error && data) {
-      this.branches.set(data.map((b: any) => ({
-        id: b.id,
-        name: b.nombre_suc,
-        address: b.direccion || ''
-      })) as Branch[]);
+      this.branches.set(
+        data.map((b: any) => ({
+          id: b.id,
+          name: b.nombre_suc,
+          address: b.direccion || '',
+        })) as Branch[],
+      );
     }
     this.loading.set(false);
   }
 
   async loadAllManagers(): Promise<void> {
     this.loading.set(true);
-    const { data, error } = await this.supabase
-      .from('roles_usuarios')
-      .select('*')
-      .order('name');
+    this.lastError.set(null);
+    // RPC: devuelve TODOS los usuarios de auth (existan o no en roles_usuarios),
+    // con rol 'pendiente' si todavía no se les asignó uno.
+    const { data, error } = await this.supabase.rpc('listar_usuarios');
 
-    if (!error && data) {
-      this.managers.set(data as Manager[]);
+    if (error) {
+      this.lastError.set(error.message);
+      this.managers.set([]);
+    } else if (data) {
+      this.managers.set(
+        (data as any[]).map((u) => ({
+          id: u.roles_id ?? 0,
+          user_id: u.user_id,
+          name: u.nombre,
+          email: u.email,
+          role: u.rol as UserRole,
+        })),
+      );
     }
     this.loading.set(false);
   }
@@ -79,10 +90,7 @@ export class AdminService {
   }
 
   async deleteBranch(id: number): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('sucursales')
-      .delete()
-      .eq('id', id);
+    const { error } = await this.supabase.from('sucursales').delete().eq('id', id);
 
     if (!error) {
       await this.loadAllBranches();
@@ -97,19 +105,17 @@ export class AdminService {
     defaultFunction: string,
     weeklyHours: number,
     dayOff: string,
-    shifts: any[]
+    shifts: any[],
   ): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('empleados')
-      .insert({
-        branch_id: branchId,
-        nombre: name,
-        funciones: functions,
-        puesto_contratado: defaultFunction,
-        jornada_semanal: weeklyHours,
-        franco: dayOff,
-        carga_horaria: JSON.stringify(shifts)
-      });
+    const { error } = await this.supabase.from('empleados').insert({
+      branch_id: branchId,
+      nombre: name,
+      funciones: functions,
+      puesto_contratado: defaultFunction,
+      jornada_semanal: weeklyHours,
+      franco: dayOff,
+      carga_horaria: JSON.stringify(shifts),
+    });
 
     return { error };
   }
@@ -121,7 +127,7 @@ export class AdminService {
     defaultFunction: string,
     weeklyHours: number,
     dayOff: string,
-    shifts: any[]
+    shifts: any[],
   ): Promise<{ error: any }> {
     const { error } = await this.supabase
       .from('empleados')
@@ -132,7 +138,7 @@ export class AdminService {
         jornada_semanal: weeklyHours,
         franco: dayOff,
         carga_horaria: JSON.stringify(shifts),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id);
 
@@ -148,22 +154,11 @@ export class AdminService {
     return { error };
   }
 
-  async createManager(userId: string, name: string, email: string, role: 'admin' | 'manager'): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('roles_usuarios')
-      .insert({ user_id: userId, name, email, role });
-
-    if (!error) {
-      await this.loadAllManagers();
-    }
-    return { error };
-  }
-
-  async updateManagerRole(id: number, role: 'admin' | 'manager'): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('roles_usuarios')
-      .update({ role })
-      .eq('id', id);
+  async updateManagerRole(userId: string, role: UserRole): Promise<{ error: any }> {
+    const { error } = await this.supabase.rpc('asignar_rol_usuario', {
+      p_user_id: userId,
+      p_rol: role,
+    });
 
     if (!error) {
       await this.loadAllManagers();
@@ -172,19 +167,19 @@ export class AdminService {
   }
 
   async assignBranchToManager(managerId: number, branchId: number): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('encargados_sucursales')
-      .insert({ manager_id: managerId, branch_id: branchId });
+    const { error } = await this.supabase.rpc('asignar_sucursal_usuario', {
+      p_manager_id: managerId,
+      p_branch_id: branchId,
+    });
 
     return { error };
   }
 
   async removeBranchFromManager(managerId: number, branchId: number): Promise<{ error: any }> {
-    const { error } = await this.supabase
-      .from('encargados_sucursales')
-      .delete()
-      .eq('manager_id', managerId)
-      .eq('branch_id', branchId);
+    const { error } = await this.supabase.rpc('quitar_sucursal_usuario', {
+      p_manager_id: managerId,
+      p_branch_id: branchId,
+    });
 
     return { error };
   }
@@ -199,7 +194,7 @@ export class AdminService {
       return data.map((b: any) => ({
         id: b.sucursales.id,
         name: b.sucursales.nombre_suc,
-        address: b.sucursales.direccion || ''
+        address: b.sucursales.direccion || '',
       })) as Branch[];
     }
     return [];
@@ -213,13 +208,10 @@ export class AdminService {
 
     const assignedIds = (assigned || []).map((a: any) => a.manager_id);
 
-    const { data: managers } = await this.supabase
-      .from('roles_usuarios')
-      .select('*')
-      .order('name');
+    const { data: managers } = await this.supabase.from('roles_usuarios').select('*').order('name');
 
     if (managers) {
-      return (managers as Manager[]).filter(m => !assignedIds.includes(m.id));
+      return (managers as Manager[]).filter((m) => !assignedIds.includes(m.id));
     }
     return [];
   }
@@ -241,7 +233,12 @@ export class AdminService {
       defaultFunction: emp.puesto_contratado || 'vendedor',
       weeklyHours: parseFloat(emp.jornada_semanal) || 40,
       dayOff: emp.franco,
-      shifts: typeof emp.carga_horaria === 'string' ? JSON.parse(emp.carga_horaria) : (emp.carga_horaria ? [{ start: 9, end: 18 }] : [])
+      shifts:
+        typeof emp.carga_horaria === 'string'
+          ? JSON.parse(emp.carga_horaria)
+          : emp.carga_horaria
+            ? [{ start: 9, end: 18 }]
+            : [],
     };
   }
 }

@@ -4,12 +4,14 @@ import { createClient, SupabaseClient, AuthSession } from '@supabase/supabase-js
 import { environment } from '../../environments/environment';
 import { Employee, normalizeShiftBlocks } from '../models/employee.model';
 
+export type UserRole = 'admin' | 'encargado' | 'supervisor' | 'rrhh' | 'pendiente';
+
 export interface Manager {
   id: number;
   user_id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager';
+  role: UserRole;
 }
 
 export interface Branch {
@@ -19,7 +21,7 @@ export interface Branch {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   private supabase: SupabaseClient;
@@ -39,13 +41,21 @@ export class AuthService {
   branchEmployees = this._branchEmployees.asReadonly();
   isAuthenticated = computed(() => !!this._session());
   isAdmin = computed(() => this._manager()?.role === 'admin');
+  isEncargado = computed(() => this._manager()?.role === 'encargado');
+  /** Supervisor y RRHH: solo lectura de todas las sucursales. */
+  isReadOnly = computed(() => {
+    const role = this._manager()?.role;
+    return role === 'supervisor' || role === 'rrhh';
+  });
+  /** Cuenta recién creada sin rol asignado por el Admin. */
+  isPending = computed(() => {
+    const manager = this._manager();
+    return !manager || manager.role === 'pendiente';
+  });
 
   constructor(@Inject(PLATFORM_ID) platformId: any) {
     this.platformId = platformId;
-    this.supabase = createClient(
-      environment.supabase.url,
-      environment.supabase.anonKey
-    );
+    this.supabase = createClient(environment.supabase.url, environment.supabase.anonKey);
   }
 
   initialize(): void {
@@ -67,7 +77,9 @@ export class AuthService {
       this._session.set(session);
     });
 
-    const { data: { session } } = await this.supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await this.supabase.auth.getSession();
     this._session.set(session);
 
     if (session) {
@@ -92,9 +104,11 @@ export class AuthService {
 
   private async loadManagerBranches(managerId: number) {
     const manager = this._manager();
+    const role = manager?.role;
     let branchList: Branch[] = [];
 
-    if (manager?.role === 'admin') {
+    if (role === 'admin' || role === 'supervisor' || role === 'rrhh') {
+      // Admin, Supervisor y RRHH ven todas las sucursales.
       const { data: allBranches } = await this.supabase
         .from('sucursales')
         .select('*')
@@ -104,10 +118,11 @@ export class AuthService {
         branchList = allBranches.map((b: any) => ({
           id: b.id,
           name: b.nombre_suc,
-          address: b.direccion || ''
+          address: b.direccion || '',
         })) as Branch[];
       }
-    } else {
+    } else if (role === 'encargado') {
+      // El Encargado ve únicamente las sucursales que tiene a cargo.
       const { data: branches } = await this.supabase
         .from('encargados_sucursales')
         .select('branch_id, sucursales(*)')
@@ -117,17 +132,18 @@ export class AuthService {
         branchList = branches.map((b: any) => ({
           id: b.sucursales.id,
           name: b.sucursales.nombre_suc,
-          address: b.sucursales.direccion || ''
+          address: b.sucursales.direccion || '',
         })) as Branch[];
       }
     }
+    // 'pendiente' no tiene sucursales hasta que el Admin le asigne.
 
     this._managerBranches.set(branchList);
     await this.loadAllEmployeesForBranches(branchList);
   }
 
   private async loadAllEmployeesForBranches(branches: Branch[]) {
-    const branchIds = branches.map(b => b.id);
+    const branchIds = branches.map((b) => b.id);
     const { data: employees } = await this.supabase
       .from('empleados')
       .select('*')
@@ -136,7 +152,7 @@ export class AuthService {
 
     if (employees) {
       const employeesMap = new Map<number, Employee[]>();
-      branches.forEach(branch => {
+      branches.forEach((branch) => {
         employeesMap.set(branch.id, []);
       });
       employees.forEach((emp: any) => {
@@ -171,18 +187,20 @@ export class AuthService {
       weeklyHours: parseFloat(emp.jornada_semanal) || 40,
       dayOff: emp.franco,
       shifts,
-      nro_vendedor: emp.nro_vendedor
+      nro_vendedor: emp.nro_vendedor,
     } as Employee & { nro_vendedor: number | null };
   }
 
   async signIn(email: string, password: string): Promise<{ error: any }> {
     const { error } = await this.supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
 
     if (!error) {
-      const { data: { session } } = await this.supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await this.supabase.auth.getSession();
       if (session) {
         await this.loadManagerData(session.user.id);
       }
@@ -196,8 +214,8 @@ export class AuthService {
       email,
       password,
       options: {
-        data: { name }
-      }
+        data: { name },
+      },
     });
     return { error };
   }
@@ -246,7 +264,7 @@ export class AuthService {
 
     if (employees) {
       const mapped = employees.map((emp: any) => this.mapDbToEmployee(emp));
-      this._branchEmployees.update(map => {
+      this._branchEmployees.update((map) => {
         const newMap = new Map(map);
         newMap.set(branch.id, mapped);
         return newMap;
