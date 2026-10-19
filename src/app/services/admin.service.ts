@@ -13,6 +13,10 @@ export class AdminService {
   managers = signal<Manager[]>([]);
   loading = signal(false);
   lastError = signal<string | null>(null);
+  /** Sucursal -> user_ids de sus encargados (puede haber más de uno). */
+  branchEncargados = signal<Map<number, string[]>>(new Map());
+  /** Empleados (plantel) para vincular con cuentas de la plataforma. */
+  empleados = signal<{ id: number; nombre: string; sucursal: string; userId: string | null }[]>([]);
 
   async loadAllBranches(): Promise<void> {
     this.loading.set(true);
@@ -24,6 +28,7 @@ export class AdminService {
           id: b.id,
           name: b.nombre_suc,
           address: b.direccion || '',
+          is24hs: !!b.es_24hs,
         })) as Branch[],
       );
     }
@@ -66,21 +71,32 @@ export class AdminService {
     return (data || []).map((emp: any) => this.mapDbToEmployee(emp));
   }
 
-  async createBranch(name: string, address: string): Promise<{ error: any }> {
-    const { error } = await this.supabase
+  async createBranch(
+    name: string,
+    address: string,
+    is24hs: boolean,
+  ): Promise<{ error: any; id?: number }> {
+    const { data, error } = await this.supabase
       .from('sucursales')
-      .insert({ nombre_suc: name, direccion: address });
+      .insert({ nombre_suc: name, direccion: address, es_24hs: is24hs })
+      .select('id')
+      .single();
 
     if (!error) {
       await this.loadAllBranches();
     }
-    return { error };
+    return { error, id: data?.id };
   }
 
-  async updateBranch(id: number, name: string, address: string): Promise<{ error: any }> {
+  async updateBranch(
+    id: number,
+    name: string,
+    address: string,
+    is24hs: boolean,
+  ): Promise<{ error: any }> {
     const { error } = await this.supabase
       .from('sucursales')
-      .update({ nombre_suc: name, direccion: address })
+      .update({ nombre_suc: name, direccion: address, es_24hs: is24hs })
       .eq('id', id);
 
     if (!error) {
@@ -94,6 +110,57 @@ export class AdminService {
 
     if (!error) {
       await this.loadAllBranches();
+    }
+    return { error };
+  }
+
+  async loadBranchEncargados(): Promise<void> {
+    const { data, error } = await this.supabase.rpc('listar_encargados');
+    if (!error && data) {
+      const map = new Map<number, string[]>();
+      (data as any[]).forEach((row) => {
+        const list = map.get(row.branch_id) ?? [];
+        list.push(row.user_id);
+        map.set(row.branch_id, list);
+      });
+      this.branchEncargados.set(map);
+    }
+  }
+
+  async setBranchEncargados(branchId: number, userIds: string[]): Promise<{ error: any }> {
+    const { error } = await this.supabase.rpc('set_encargados_sucursal', {
+      p_branch_id: branchId,
+      p_user_ids: userIds,
+    });
+
+    if (!error) {
+      await this.loadBranchEncargados();
+    }
+    return { error };
+  }
+
+  async loadEmpleados(): Promise<void> {
+    const { data, error } = await this.supabase.rpc('listar_empleados');
+    if (!error && data) {
+      this.empleados.set(
+        (data as any[]).map((e) => ({
+          id: e.id,
+          nombre: e.nombre,
+          sucursal: e.sucursal,
+          userId: e.user_id ?? null,
+        })),
+      );
+    }
+  }
+
+  async vincularEmpleado(userId: string, empleadoId: number | null): Promise<{ error: any }> {
+    const { error } = await this.supabase.rpc('vincular_empleado', {
+      p_user_id: userId,
+      p_empleado_id: empleadoId,
+    });
+
+    if (!error) {
+      await this.loadEmpleados();
     }
     return { error };
   }
@@ -182,6 +249,18 @@ export class AdminService {
     });
 
     return { error };
+  }
+
+  async deleteUser(userId: string): Promise<{ error: any }> {
+    const { error } = await this.supabase.rpc('eliminar_usuario', { p_user_id: userId });
+
+    if (error) {
+      this.lastError.set(error.message);
+      return { error };
+    }
+
+    await this.loadAllManagers();
+    return { error: null };
   }
 
   async getManagerBranches(managerId: number): Promise<Branch[]> {

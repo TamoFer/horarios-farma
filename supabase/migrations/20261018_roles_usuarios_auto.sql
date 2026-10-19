@@ -222,6 +222,168 @@ GRANT EXECUTE ON FUNCTION public.asignar_sucursal_usuario(integer, integer) TO a
 GRANT EXECUTE ON FUNCTION public.quitar_sucursal_usuario(integer, integer) TO authenticated;
 
 -- ---------------------------------------------------------------------
+-- 6b) RPC: eliminar un usuario (solo Admin, no puede borrarse a sí mismo).
+--     Borra sus sucursales, su fila en roles_usuarios y el usuario de auth.
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.eliminar_usuario(p_user_id text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios ru
+    WHERE ru.user_id = auth.uid()::text AND ru.role::text = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo un administrador puede eliminar usuarios';
+  END IF;
+
+  IF p_user_id = auth.uid()::text THEN
+    RAISE EXCEPTION 'No podés eliminar tu propio usuario';
+  END IF;
+
+  DELETE FROM public.encargados_sucursales
+  WHERE manager_id IN (
+    SELECT id FROM public.roles_usuarios WHERE user_id = p_user_id
+  );
+
+  DELETE FROM public.roles_usuarios WHERE user_id = p_user_id;
+
+  DELETE FROM auth.users WHERE id::text = p_user_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.eliminar_usuario(text) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6c) RPC para administrar sucursales (solo Admin).
+--     - listar_encargados(): sucursal -> user_id del encargado.
+--     - set_encargado_sucursal(): fija (o quita) el encargado de una
+--       sucursal. Si el usuario está 'pendiente', pasa a 'encargado'.
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.listar_encargados()
+RETURNS TABLE(branch_id integer, user_id text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios ru
+    WHERE ru.user_id = auth.uid()::text AND ru.role::text = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo un administrador puede listar encargados';
+  END IF;
+
+  RETURN QUERY
+  SELECT es.branch_id, r.user_id
+  FROM public.encargados_sucursales es
+  JOIN public.roles_usuarios r ON r.id = es.manager_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.set_encargados_sucursal(p_branch_id integer, p_user_ids text[])
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_uid text;
+  v_roles_id integer;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios ru
+    WHERE ru.user_id = auth.uid()::text AND ru.role::text = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo un administrador puede asignar encargados';
+  END IF;
+
+  -- Reemplaza los encargados actuales de la sucursal por los indicados.
+  DELETE FROM public.encargados_sucursales WHERE branch_id = p_branch_id;
+
+  IF p_user_ids IS NULL THEN
+    RETURN;
+  END IF;
+
+  FOR v_uid IN SELECT DISTINCT u FROM unnest(p_user_ids) AS u LOOP
+    SELECT r.id INTO v_roles_id FROM public.roles_usuarios r WHERE r.user_id = v_uid;
+    IF v_roles_id IS NULL THEN
+      RAISE EXCEPTION 'Usuario inexistente: %', v_uid;
+    END IF;
+
+    IF (SELECT r.role::text FROM public.roles_usuarios r WHERE r.id = v_roles_id) = 'pendiente' THEN
+      EXECUTE format('UPDATE public.roles_usuarios SET role = %L WHERE id = %s', 'encargado', v_roles_id);
+    END IF;
+
+    INSERT INTO public.encargados_sucursales (manager_id, branch_id)
+    VALUES (v_roles_id, p_branch_id);
+  END LOOP;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.set_encargado_sucursal(integer, text);
+
+GRANT EXECUTE ON FUNCTION public.listar_encargados() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_encargados_sucursal(integer, text[]) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6d) Vínculo entre un usuario de la plataforma y su ficha de empleado.
+--     - `empleados.user_id` guarda el id de auth del usuario vinculado.
+--     - Un usuario no puede estar vinculado a dos empleados.
+-- ---------------------------------------------------------------------
+ALTER TABLE public.empleados ADD COLUMN IF NOT EXISTS user_id text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS empleados_user_id_key
+  ON public.empleados (user_id) WHERE user_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.listar_empleados()
+RETURNS TABLE(id integer, nombre text, sucursal text, user_id text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios ru
+    WHERE ru.user_id = auth.uid()::text AND ru.role::text = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo un administrador puede listar empleados';
+  END IF;
+
+  RETURN QUERY
+  SELECT e.id, e.nombre::text, COALESCE(s.nombre_suc::text, ''), e.user_id
+  FROM public.empleados e
+  LEFT JOIN public.sucursales s ON s.id = e.branch_id
+  WHERE e.trabajando = true
+  ORDER BY s.nombre_suc, e.nombre;
+END;
+$$;
+
+-- Vincula al usuario con un empleado. Con p_empleado_id = NULL lo desvincula.
+CREATE OR REPLACE FUNCTION public.vincular_empleado(p_user_id text, p_empleado_id integer)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.roles_usuarios ru
+    WHERE ru.user_id = auth.uid()::text AND ru.role::text = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Solo un administrador puede vincular empleados';
+  END IF;
+
+  -- Un usuario no puede estar en dos empleados: se limpia el anterior.
+  UPDATE public.empleados SET user_id = NULL WHERE user_id = p_user_id;
+
+  IF p_empleado_id IS NOT NULL THEN
+    UPDATE public.empleados SET user_id = p_user_id WHERE id = p_empleado_id;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.listar_empleados() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.vincular_empleado(text, integer) TO authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6e) Sucursal abierta 24 hs (define si tiene área de noche / nochero).
+-- ---------------------------------------------------------------------
+ALTER TABLE public.sucursales ADD COLUMN IF NOT EXISTS es_24hs boolean NOT NULL DEFAULT false;
+
+-- ---------------------------------------------------------------------
 -- 7) Verificación: todos los usuarios y su rol.
 -- ---------------------------------------------------------------------
 SELECT u.email, COALESCE(r.role, 'pendiente') AS rol

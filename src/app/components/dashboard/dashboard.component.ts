@@ -108,7 +108,10 @@ export class DashboardComponent {
   employeeChange = output<Employee[]>();
   saveSchedule = output<{ date: string; placedEmployees: PlacedEmployeeData[] }>();
 
-  areas = AREAS;
+  /** El área de noche (nochero) solo existe en sucursales 24 hs. */
+  get areas(): Area[] {
+    return this.authService.selectedBranch()?.is24hs ? AREAS : AREAS.filter((a) => a !== 'noche');
+  }
   workHours = WORK_HOURS;
   areaLabels = AREA_LABELS;
   functionLabels = FUNCTION_LABELS;

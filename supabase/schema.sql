@@ -7,6 +7,7 @@ CREATE TABLE sucursales (
   id SERIAL PRIMARY KEY,
   nombre_suc TEXT NOT NULL,
   direccion TEXT,
+  es_24hs BOOLEAN NOT NULL DEFAULT false,
   fecha_creacion TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -43,7 +44,9 @@ CREATE TABLE empleados (
   trabajando BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  nro_vendedor INTEGER
+  nro_vendedor INTEGER,
+  -- Cuenta de la plataforma (auth.users.id) vinculada a esta ficha, si la hay.
+  user_id TEXT
 );
 
 -- Vacaciones

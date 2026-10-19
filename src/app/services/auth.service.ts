@@ -18,6 +18,7 @@ export interface Branch {
   id: number;
   name: string;
   address: string;
+  is24hs: boolean;
 }
 
 @Injectable({
@@ -119,6 +120,7 @@ export class AuthService {
           id: b.id,
           name: b.nombre_suc,
           address: b.direccion || '',
+          is24hs: !!b.es_24hs,
         })) as Branch[];
       }
     } else if (role === 'encargado') {
@@ -133,6 +135,7 @@ export class AuthService {
           id: b.sucursales.id,
           name: b.sucursales.nombre_suc,
           address: b.sucursales.direccion || '',
+          is24hs: !!b.sucursales.es_24hs,
         })) as Branch[];
       }
     }
